@@ -1,99 +1,40 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
 import { site } from "@/lib/site";
 import { HERO_WORDMARK } from "./heroWordmarkLayout";
 
-const WORDMARK_CLASS =
-  "hero-wordmark-text hero-title-stroke m-0 whitespace-nowrap p-0 font-ivar uppercase text-black";
+const STUDIO_SCALE_X = 1.752095;
 
 type HeroWordmarksProps = {
   className?: string;
 };
 
 export default function HeroWordmarks({ className = "" }: HeroWordmarksProps) {
-  const dickRef = useRef<HTMLSpanElement>(null);
-  const studioRef = useRef<HTMLSpanElement>(null);
-  const studioWrapRef = useRef<HTMLSpanElement>(null);
-
-  useLayoutEffect(() => {
-    const applyStudioScale = () => {
-      const dick = dickRef.current;
-      const studio = studioRef.current;
-      const studioWrap = studioWrapRef.current;
-      if (!dick || !studio || !studioWrap) return;
-
-      studioWrap.style.transform = "scaleX(1)";
-
-      const targetWidth = dick.getBoundingClientRect().width;
-      const naturalWidth = studio.getBoundingClientRect().width;
-
-      if (targetWidth <= 0 || naturalWidth <= 0) {
-        studioWrap.style.visibility = "visible";
-        return;
-      }
-
-      studioWrap.style.transform = `scaleX(${targetWidth / naturalWidth})`;
-      studioWrap.style.visibility = "visible";
-    };
-
-    applyStudioScale();
-    window.addEventListener("resize", applyStudioScale);
-    void document.fonts.ready.then(applyStudioScale);
-
-    const observer = new ResizeObserver(applyStudioScale);
-    if (dickRef.current) observer.observe(dickRef.current);
-    if (studioRef.current) observer.observe(studioRef.current);
-
-    return () => {
-      window.removeEventListener("resize", applyStudioScale);
-      observer.disconnect();
-    };
-  }, []);
-
   return (
     <div
       className={`pointer-events-none absolute inset-0 z-[196] overflow-visible ${className}`}
+      style={{
+        fontSize: HERO_WORDMARK.fontSize,
+        paddingInline: HERO_WORDMARK.insetInline,
+      }}
     >
-      <div
-        className="absolute text-center"
-        style={{
-          left: HERO_WORDMARK.edgeMargin,
-          right: HERO_WORDMARK.edgeMargin,
-          top: HERO_WORDMARK.top,
-        }}
+      <span
+        className="hero-wordmark-text hero-wordmark-top hero-title-stroke absolute inset-x-0 top-0 block text-center font-ivar uppercase text-black"
+        style={{ paddingTop: HERO_WORDMARK.insetBlockStart, lineHeight: 0.9 }}
       >
-        <span
-          ref={dickRef}
-          className={WORDMARK_CLASS}
-          style={{ fontSize: HERO_WORDMARK.fontSize }}
-        >
-          {site.wordmark.left}
-        </span>
-      </div>
+        {site.wordmark.left}
+      </span>
 
-      <div
-        className="absolute text-center"
+      <span
+        className="hero-wordmark-text hero-wordmark-bottom hero-title-stroke absolute inset-x-0 bottom-0 block origin-center text-center font-ivar uppercase text-black"
         style={{
-          left: HERO_WORDMARK.edgeMargin,
-          right: HERO_WORDMARK.edgeMargin,
-          bottom: HERO_WORDMARK.bottom,
+          paddingBottom: HERO_WORDMARK.insetBlockEnd,
+          lineHeight: 0.3,
+          transform: `scaleX(${STUDIO_SCALE_X})`,
         }}
       >
-        <span
-          ref={studioWrapRef}
-          className="inline-block origin-center"
-          style={{ visibility: "hidden", lineHeight: 1 }}
-        >
-          <span
-            ref={studioRef}
-            className={WORDMARK_CLASS}
-            style={{ fontSize: HERO_WORDMARK.fontSize }}
-          >
-            {site.wordmark.right}
-          </span>
-        </span>
-      </div>
+        {site.wordmark.right}
+      </span>
     </div>
   );
 }
