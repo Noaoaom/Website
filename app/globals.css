@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-site), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-ivar: var(--font-sans);
+  --font-helvetica: var(--font-sans);
+  --color-brand-red: #d60001;
+  --hero-title-stroke: 0.05em;
+}
+
+html {
+  background: #000;
+}
+
+body {
+  background: #000;
+  color: #d60001;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+}
+
+.font-ivar {
+  font-family: var(--font-sans);
+}
+
+.font-helvetica {
+  font-family: var(--font-sans);
+}
+
+.hero-title-stroke {
+  -webkit-text-stroke: var(--hero-title-stroke) currentColor;
+  paint-order: stroke fill;
+  line-height: 1;
+  display: block;
+}
+
+.hero-wordmark-text {
+  display: inline-block;
+}
+
+::selection {
+  background: #d60001;
+  color: #000;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.logo-sprite {
+  animation: logo-breathe 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes logo-breathe {
+  from {
+    transform: scale(0.96);
+    filter: brightness(1);
+  }
+  to {
+    transform: scale(1.04);
+    filter: brightness(1.08);
+  }
+}
+
+/* Lenis smooth-scroll helpers */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .logo-sprite {
+    animation: none;
+  }
+}
