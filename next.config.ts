@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  output: "export",
   images: {
+    unoptimized: true,
     formats: ["image/avif", "image/webp"],
     // Allows the SVG placeholders to run through next/image.
     // Safe to keep once you swap in real JPG/WebP artwork.
