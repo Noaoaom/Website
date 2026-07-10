@@ -21,11 +21,22 @@ export function useIntroReelMotion() {
     }
   );
 
+  const outerWidthVw = useTransform(
+    [slotOpen, revealHorizontal],
+    ([slot, horiz]: number[]) => {
+      if (horiz > 0) {
+        return SLOT_WIDTH_VW + easeZoom(horiz) * (100 - SLOT_WIDTH_VW);
+      }
+      return slot * SLOT_WIDTH_VW;
+    }
+  );
+
   return {
     slotOpen,
     revealHorizontal,
     revealVertical,
     outerHeightVh,
+    outerWidthVw,
   };
 }
 

@@ -60,6 +60,13 @@ h6 {
   text-box-edge: cap alphabetic;
 }
 
+.hero-wordmark-stack {
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+  line-height: 1 !important;
+  margin-block: 0;
+}
+
 ::selection {
   background: #d60001;
   color: #000;

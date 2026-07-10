@@ -14,17 +14,17 @@ import {
 } from "@/lib/cropReveal";
 import type { IntroReelMotion } from "./intro/useIntroReelMotion";
 import { SLOT_HEIGHT_VH, SLOT_WIDTH_VW } from "./intro/useIntroReelMotion";
+import { WORDMARK_INTRO_TOTAL_MS } from "./heroWordmarkLayout";
 import MediaCover from "./ui/MediaCover";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const RED_HOLD_MS = 1000;
-const SLOT_OPEN_S = 1.1;
-const PROJECT_BEAT_MS = 100;
-const CROP_IN_S = 0.9;
-const REVEAL_VERTICAL_PARTIAL = 0.6;
-const REVEAL_VERTICAL_PAUSE_MS = 10;
-const REVEAL_VERTICAL_S = 0.85;
-const REVEAL_PARALLEL_S = 0.85;
+const RED_HOLD_MS = WORDMARK_INTRO_TOTAL_MS;
+const POST_TEXT_READY_MS = 100;
+const SLOT_OPEN_S = 0.95;
+const PROJECT_BEAT_MS = 50;
+const CROP_IN_S = 0.75;
+const REVEAL_S = 0.95;
+const REVEAL_HORIZONTAL_DELAY_S = 0.28;
 
 export type IntroMediaItem = {
   id: string;
@@ -197,7 +197,7 @@ export default function IntroCurtain({
 
       onTextReadyRef.current();
 
-      await wait(280);
+      await wait(POST_TEXT_READY_MS);
       if (cancelled) return;
 
       cropProgresses[0]?.set(1);
@@ -218,23 +218,15 @@ export default function IntroCurtain({
       await Promise.all([slotAnimation, ...cropAnimations]);
       if (cancelled) return;
 
-      await animate(revealVertical, REVEAL_VERTICAL_PARTIAL, {
-        duration: REVEAL_VERTICAL_S,
-        ease: EASE,
-      });
-      if (cancelled) return;
-
-      await wait(REVEAL_VERTICAL_PAUSE_MS);
-      if (cancelled) return;
-
       await Promise.all([
-        animate(revealHorizontal, 1, {
-          duration: REVEAL_PARALLEL_S,
+        animate(revealVertical, 1, {
+          duration: REVEAL_S,
           ease: EASE,
         }),
-        animate(revealVertical, 1, {
-          duration: REVEAL_PARALLEL_S,
+        animate(revealHorizontal, 1, {
+          duration: REVEAL_S * 0.88,
           ease: EASE,
+          delay: REVEAL_HORIZONTAL_DELAY_S,
         }),
       ]);
       if (cancelled) return;

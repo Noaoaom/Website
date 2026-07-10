@@ -62,6 +62,8 @@ export default function HomePage() {
     setPreloaderActive(false);
 
     const rm = reelMotionRef.current;
+    rm.slotOpen.set(1);
+    rm.revealHorizontal.set(1);
     rm.revealVertical.set(1);
 
     requestAnimationFrame(() => {
@@ -97,7 +99,7 @@ export default function HomePage() {
       >
         <div className="sticky top-0 h-dvh w-full">
           <HeroContent y={heroY} scale={heroScale} />
-          <HeroWordmarks />
+          <HeroWordmarks reelMotion={reelMotion} />
           {showIntro ? (
             <IntroCurtain
               media={introMedia}
