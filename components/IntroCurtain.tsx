@@ -15,7 +15,10 @@ import {
 import type { IntroReelMotion } from "./intro/useIntroReelMotion";
 import { SLOT_HEIGHT_VH, SLOT_WIDTH_VW } from "./intro/useIntroReelMotion";
 import { WORDMARK_INTRO_TOTAL_MS } from "./heroWordmarkLayout";
+import { carouselRedMaskClip } from "@/lib/introCarouselClip";
+import { waitUntil } from "@/lib/waitUntil";
 import MediaCover from "./ui/MediaCover";
+import { useUI } from "./Providers";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const RED_HOLD_MS = WORDMARK_INTRO_TOTAL_MS;
@@ -25,6 +28,8 @@ const PROJECT_BEAT_MS = 50;
 const CROP_IN_S = 0.75;
 const REVEAL_S = 0.95;
 const REVEAL_HORIZONTAL_DELAY_S = 0.28;
+/** Max wait for hero video buffer before intro starts anyway. */
+const INTRO_MEDIA_MAX_WAIT_MS = 12000;
 
 export type IntroMediaItem = {
   id: string;
@@ -114,6 +119,9 @@ export default function IntroCurtain({
 }: IntroCurtainProps) {
   const mediaCount = media.length;
   const cropProgresses = useCropValues(mediaCount);
+  const { introSequenceReady } = useUI();
+  const introSequenceReadyRef = useRef(introSequenceReady);
+  introSequenceReadyRef.current = introSequenceReady;
 
   const { slotOpen, revealHorizontal, revealVertical, outerHeightVh } =
     reelMotion;
@@ -161,6 +169,14 @@ export default function IntroCurtain({
     slot > 0 ? "100dvh" : `${SLOT_HEIGHT_VH}dvh`
   );
 
+  const redMaskClip = useTransform(
+    [slotOpen, outerHeightVh, outerWidthVw],
+    ([slot, hVh, wVw]: number[]) => {
+      if (slot <= 0.001) return "none";
+      return carouselRedMaskClip(hVh, wVw);
+    }
+  );
+
   const onTextReadyRef = useRef(onTextReady);
   const onCompleteRef = useRef(onComplete);
   onTextReadyRef.current = onTextReady;
@@ -191,6 +207,12 @@ export default function IntroCurtain({
       revealHorizontal.set(0);
       revealVertical.set(0);
       cropProgresses.forEach((crop) => crop.set(0));
+
+      await waitUntil(
+        () => introSequenceReadyRef.current,
+        INTRO_MEDIA_MAX_WAIT_MS
+      );
+      if (cancelled) return;
 
       await wait(RED_HOLD_MS);
       if (cancelled) return;
@@ -248,7 +270,12 @@ export default function IntroCurtain({
   ]);
 
   return (
-    <motion.div className="pointer-events-none absolute inset-0 z-[180] overflow-hidden bg-brand-red">
+    <motion.div className="pointer-events-none absolute inset-0 z-[180] overflow-hidden">
+      {/* Roter Vorhang mit Loch — Hero-Video darunter wird beim Reveal sichtbar */}
+      <motion.div
+        className="absolute inset-0 z-[185] bg-brand-red will-change-[clip-path]"
+        style={{ clipPath: redMaskClip }}
+      />
       <div className="absolute inset-0 z-[190] flex items-center justify-center">
         <motion.div
           className="relative shrink-0 overflow-hidden will-change-[width,height,top,left,transform]"

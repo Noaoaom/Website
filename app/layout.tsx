@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { siteFont } from "./fonts";
 import { site } from "@/lib/site";
+import { heroMedia } from "@/lib/projects";
 import Providers from "@/components/Providers";
 import "./globals.css";
 
@@ -20,6 +21,11 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${siteFont.variable} lenis`}>
+      <head>
+        {heroMedia.video ? (
+          <link rel="preload" as="video" href={heroMedia.video} />
+        ) : null}
+      </head>
       <body className={`${siteFont.className} relative bg-black font-sans text-brand-red antialiased`}>
         <Providers>{children}</Providers>
       </body>

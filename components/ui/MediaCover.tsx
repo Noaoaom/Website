@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useFinePointer } from "../hooks";
+import { useUI } from "../Providers";
 
 type MediaCoverProps = {
   image: string;
@@ -32,6 +33,7 @@ export default function MediaCover({
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const finePointer = useFinePointer();
+  const { setIntroSequenceReady } = useUI();
   const [shouldLoad, setShouldLoad] = useState(priority);
   const [videoReady, setVideoReady] = useState(false);
   const isSvg = image.endsWith(".svg");
@@ -54,7 +56,45 @@ export default function MediaCover({
   }, [priority, preloadMargin, shouldLoad]);
 
   useEffect(() => {
-    if (!video || !playOnView || !shouldLoad) return;
+    if (!video || !shouldLoad) return;
+    const el = videoRef.current;
+    if (!el) return;
+
+    if (priority) {
+      const markReady = () => setVideoReady(true);
+      const tryPlay = () => {
+        el.play().catch(() => undefined);
+      };
+      const signalIntroReady = () => {
+        if (handoffId === "hero-reel") {
+          setIntroSequenceReady(true);
+        }
+      };
+
+      el.addEventListener("loadeddata", markReady);
+      el.addEventListener("canplay", markReady);
+      el.addEventListener("canplay", tryPlay);
+      el.addEventListener("canplaythrough", signalIntroReady, { once: true });
+
+      if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        markReady();
+        tryPlay();
+      }
+      if (el.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+        signalIntroReady();
+      }
+
+      return () => {
+        el.removeEventListener("loadeddata", markReady);
+        el.removeEventListener("canplay", markReady);
+        el.removeEventListener("canplay", tryPlay);
+        el.removeEventListener("canplaythrough", signalIntroReady);
+      };
+    }
+  }, [video, shouldLoad, priority, handoffId, setIntroSequenceReady]);
+
+  useEffect(() => {
+    if (!video || !playOnView || !shouldLoad || priority) return;
     const node = ref.current;
     if (!node) return;
 
@@ -73,7 +113,7 @@ export default function MediaCover({
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [video, playOnView, shouldLoad]);
+  }, [video, playOnView, shouldLoad, priority]);
 
   const showVideo = Boolean(video) && finePointer && videoReady;
 
@@ -112,7 +152,8 @@ export default function MediaCover({
           muted
           loop
           playsInline
-          preload="metadata"
+          autoPlay={priority}
+          preload={priority ? "auto" : "metadata"}
           onCanPlay={() => setVideoReady(true)}
           className={`absolute inset-0 h-full w-full ${objectClass} transition-opacity duration-300 ${
             showVideo ? "opacity-100" : "opacity-0"

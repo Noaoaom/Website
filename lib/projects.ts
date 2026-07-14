@@ -101,7 +101,7 @@ export const projects: Project[] = [
 export const heroMedia = {
   /** Full-screen reel behind the landing view. */
   image: "/placeholders/hero.svg",
-  video: undefined as string | undefined,
+  video: "/Videos/Blitz-web.mp4",
 };
 
 export function getProject(slug: string) {

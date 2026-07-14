@@ -4,12 +4,13 @@ import { useScroll, useTransform } from "motion/react";
 import { useCallback, useRef, useState } from "react";
 import { heroMedia, projects } from "@/lib/projects";
 import { useUI } from "./Providers";
-import Footer, { FOOTER_TOTAL_DVH } from "./Footer";
+import Footer from "./Footer";
 import HeroContent from "./Hero";
 import HeroWordmarks from "./HeroWordmarks";
 import IntroCurtain, { type IntroMediaItem } from "./IntroCurtain";
 import { useIntroReelMotion } from "./intro/useIntroReelMotion";
 import MediaPreloader from "./MediaPreloader";
+import IntroSequenceBootstrap from "./IntroSequenceBootstrap";
 import ProjectSection, { HERO_OVERLAP_VH } from "./ProjectSection";
 
 /** Extra scroll while hero stays pinned before projects take over. */
@@ -90,6 +91,7 @@ export default function HomePage() {
   return (
     <main className="relative bg-black">
       <MediaPreloader />
+      <IntroSequenceBootstrap />
       <div
         ref={pinRef}
         className="relative z-[1]"
@@ -123,12 +125,6 @@ export default function HomePage() {
       </div>
 
       {/* Scroll room: last project moves up over the fixed footer waiting below. */}
-      <div
-        className="pointer-events-none relative z-[2]"
-        style={{ height: `${FOOTER_TOTAL_DVH}dvh` }}
-        aria-hidden
-      />
-
       <Footer theme="red" />
     </main>
   );

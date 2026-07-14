@@ -19,18 +19,8 @@ import { useUI } from "./Providers";
 const STUDIO_SCALE_X = 1.752095;
 const EASE = [0.22, 1, 0.36, 1] as const;
 const OFFSCREEN_PAD_PX = 48;
+/** Brand red + difference → black on curtain, red on dark media (pixel-exact). */
 const BRAND_RED = "#d60001";
-const WORDMARK_BLACK = "#000000";
-/** Crossfade starts once titles move off the red curtain. */
-const COLOR_REVEAL_START = 0.42;
-
-function wordmarkColorProgress(reveal: number) {
-  const delayed = Math.max(
-    0,
-    Math.min(1, (reveal - COLOR_REVEAL_START) / (1 - COLOR_REVEAL_START))
-  );
-  return easeZoom(delayed);
-}
 
 let inkCanvasCtx: CanvasRenderingContext2D | null | undefined;
 
@@ -47,7 +37,6 @@ function getInkBounds(el: HTMLElement, text: string) {
   const ctx = inkCanvasCtx;
   if (!ctx) return null;
 
-  // Zero-size inline-block sitzt exakt auf der Baseline der Textzeile.
   const probe = document.createElement("span");
   probe.style.display = "inline-block";
   probe.style.width = "0";
@@ -59,12 +48,23 @@ function getInkBounds(el: HTMLElement, text: string) {
   const cs = getComputedStyle(el);
   ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
   const metrics = ctx.measureText(text.toUpperCase());
-  // Text-Stroke ist auf der Kontur zentriert und ragt zur Hälfte hinaus.
   const strokeHalf = (parseFloat(cs.webkitTextStrokeWidth) || 0) / 2;
 
   return {
     top: baseline - metrics.actualBoundingBoxAscent - strokeHalf,
     bottom: baseline + metrics.actualBoundingBoxDescent + strokeHalf,
+    left:
+      el.getBoundingClientRect().left +
+      metrics.actualBoundingBoxLeft -
+      strokeHalf,
+    right:
+      el.getBoundingClientRect().left +
+      metrics.actualBoundingBoxRight +
+      strokeHalf,
+    width:
+      metrics.actualBoundingBoxLeft +
+      metrics.actualBoundingBoxRight +
+      strokeHalf * 2,
   };
 }
 
@@ -77,9 +77,31 @@ type Measurements = {
   finalRightTop: number;
   revealLeftStartY: number;
   revealRightStartY: number;
+  revealLeftFinalStartY: number;
+  revealRightFinalStartY: number;
   leftStartX: number;
   rightStartX: number;
+  /** Horizontal scale at full reveal so viewport ink inset matches top/bottom inset. */
+  revealScaleX: number;
 };
+
+function computeRevealScaleX(
+  vw: number,
+  topInset: number,
+  bottomInset: number,
+  leftInkWidth: number,
+  rightInkWidth: number
+) {
+  const targetInset = Math.min(topInset, bottomInset);
+  if (targetInset <= 0 || leftInkWidth <= 0 || rightInkWidth <= 0) return 1;
+
+  const targetWidth = vw - targetInset * 2;
+  const leftTarget = targetWidth / leftInkWidth;
+  const rightTarget = targetWidth / rightInkWidth;
+  const targetScaleX = Math.min(leftTarget, rightTarget);
+
+  return targetScaleX > 1 ? targetScaleX : 1;
+}
 
 function getCarouselBounds(heightVh: number, vhPx: number) {
   const heightPx = (heightVh / 100) * vhPx;
@@ -126,14 +148,13 @@ type WordmarkLayerProps = {
   measureRef: RefObject<HTMLSpanElement | null>;
   wordClass: string;
   label: string;
+  originClass: string;
   style: {
     lineHeight: number;
     x: MotionValue<number>;
     y: MotionValue<number>;
+    scaleX: MotionValue<number>;
     opacity: number;
-    blackOpacity: MotionValue<number> | number;
-    redOpacity: MotionValue<number> | number;
-    scaleX?: number;
   };
 };
 
@@ -144,40 +165,26 @@ function WordmarkLayer({
   measureRef,
   wordClass,
   label,
+  originClass,
   style,
 }: WordmarkLayerProps) {
-  const { lineHeight, x, y, opacity, blackOpacity, redOpacity, scaleX } =
-    style;
-  const originClass = scaleX !== undefined ? "origin-center" : "";
-  const typographyClass = `${wordmarkTypography} ${wordClass}`;
+  const { lineHeight, x, y, scaleX, opacity } = style;
 
   return (
     <motion.span
-      className={`relative inline-grid will-change-transform ${originClass}`}
-      style={{ lineHeight, x, y, scaleX, opacity }}
+      ref={measureRef}
+      className={`${wordmarkTypography} ${wordClass} inline-block will-change-transform ${originClass}`}
+      style={{
+        lineHeight,
+        x,
+        y,
+        scaleX,
+        opacity,
+        color: BRAND_RED,
+        WebkitTextStrokeColor: BRAND_RED,
+      }}
     >
-      <motion.span
-        ref={measureRef}
-        className={`${typographyClass} col-start-1 row-start-1 inline-block`}
-        style={{
-          opacity: blackOpacity,
-          color: WORDMARK_BLACK,
-          WebkitTextStrokeColor: WORDMARK_BLACK,
-        }}
-      >
-        {label}
-      </motion.span>
-      <motion.span
-        className={`${typographyClass} col-start-1 row-start-1 inline-block`}
-        aria-hidden
-        style={{
-          opacity: redOpacity,
-          color: BRAND_RED,
-          WebkitTextStrokeColor: BRAND_RED,
-        }}
-      >
-        {label}
-      </motion.span>
+      {label}
     </motion.span>
   );
 }
@@ -187,7 +194,7 @@ export default function HeroWordmarks({
   className = "",
 }: HeroWordmarksProps) {
   const reducedMotion = useReducedMotion();
-  const { introComplete } = useUI();
+  const { introComplete, introSequenceReady } = useUI();
   const { outerHeightVh, revealVertical } = reelMotion;
 
   const leftMeasureRef = useRef<HTMLSpanElement>(null);
@@ -200,19 +207,14 @@ export default function HeroWordmarks({
   const vhPxRef = useRef(
     typeof window !== "undefined" ? window.innerHeight : 800
   );
-  const atFinalStyleRef = useRef(Boolean(reducedMotion));
 
   const [visible, setVisible] = useState(Boolean(reducedMotion));
-  const [atFinalStyle, setAtFinalStyle] = useState(Boolean(reducedMotion));
+  const [useFinalStyle, setUseFinalStyle] = useState(
+    Boolean(reducedMotion || introComplete)
+  );
 
   const leftX = useMotionValue(0);
   const rightX = useMotionValue(0);
-
-  const colorProgress = useTransform(revealVertical, wordmarkColorProgress);
-  const blackOpacity = useTransform(colorProgress, (t) => 1 - t);
-  const redOpacity = useTransform(colorProgress, (t) => t);
-  const resolvedBlackOpacity = reducedMotion ? 0 : blackOpacity;
-  const resolvedRedOpacity = reducedMotion ? 1 : redOpacity;
 
   const leftY = useTransform(
     [outerHeightVh, revealVertical],
@@ -221,7 +223,7 @@ export default function HeroWordmarks({
       if (!m) return 0;
 
       if (vert > 0.001) {
-        return m.revealLeftStartY * (1 - easeZoom(vert));
+        return m.revealLeftFinalStartY * (1 - easeZoom(vert));
       }
 
       return computeTopY(
@@ -241,7 +243,7 @@ export default function HeroWordmarks({
       if (!m) return 0;
 
       if (vert > 0.001) {
-        return m.revealRightStartY * (1 - easeZoom(vert));
+        return m.revealRightFinalStartY * (1 - easeZoom(vert));
       }
 
       return computeBottomY(
@@ -254,11 +256,24 @@ export default function HeroWordmarks({
     }
   );
 
+  const leftScaleX = useTransform(revealVertical, (vert) => {
+    const m = measureRef.current;
+    if (!m || m.revealScaleX <= 1) return 1;
+    if (vert <= 0.001) return 1;
+    return 1 + (m.revealScaleX - 1) * easeZoom(vert);
+  });
+
+  const rightScaleX = useTransform(revealVertical, (vert) => {
+    const m = measureRef.current;
+    if (!m || m.revealScaleX <= 1) return STUDIO_SCALE_X;
+    if (vert <= 0.001) return STUDIO_SCALE_X;
+    const t = easeZoom(vert);
+    return STUDIO_SCALE_X * (1 + (m.revealScaleX - 1) * t);
+  });
+
   useLayoutEffect(() => {
     if (reducedMotion) {
       setVisible(true);
-      setAtFinalStyle(true);
-      atFinalStyleRef.current = true;
       return;
     }
 
@@ -290,16 +305,31 @@ export default function HeroWordmarks({
       const stackRightRect = stackRight.getBoundingClientRect();
       const vw = window.innerWidth;
 
-      // Sichtbare Buchstaben-Kanten statt Line-Box, damit die Titel bündig
-      // an der Karussell-Kante anliegen.
       const leftInkBottom =
         getInkBounds(leftText, site.wordmark.left)?.bottom ?? leftRect.bottom;
       const rightInkTop =
         getInkBounds(rightText, site.wordmark.right)?.top ?? rightRect.top;
 
-      // Im zentrierten Stapel überlappen sich die sichtbaren Buchstaben
-      // (Stroke + Glyphen-Überhang ragen über die Line-Box hinaus). Beide
-      // Wörter symmetrisch auseinanderschieben, bis die Inks nur berühren.
+      const leftFinalInk = getInkBounds(leftFinalMeasure, site.wordmark.left);
+      const rightFinalInk = getInkBounds(rightFinalMeasure, site.wordmark.right);
+
+      const leftFinalInkTop = leftFinalInk?.top ?? leftFinalRect.top;
+      const leftFinalInkBottom = leftFinalInk?.bottom ?? leftFinalRect.bottom;
+      const rightFinalInkTop = rightFinalInk?.top ?? rightFinalRect.top;
+      const rightFinalInkBottom = rightFinalInk?.bottom ?? rightFinalRect.bottom;
+
+      const topInset = leftFinalInkTop;
+      const bottomInset = vhPxRef.current - rightFinalInkBottom;
+      const leftInkWidth = leftFinalInk?.width ?? leftFinalRect.width;
+      const rightInkWidth = rightFinalInk?.width ?? rightFinalRect.width;
+      const revealScaleX = computeRevealScaleX(
+        vw,
+        topInset,
+        bottomInset,
+        leftInkWidth,
+        rightInkWidth
+      );
+
       const stackLeftInk = getInkBounds(stackLeft, site.wordmark.left);
       const stackRightInk = getInkBounds(stackRight, site.wordmark.right);
       const stackInkOverlap =
@@ -328,8 +358,23 @@ export default function HeroWordmarks({
           rightInkTop,
           rightFinalRect.top
         ),
+        revealLeftFinalStartY: computeTopY(
+          SLOT_HEIGHT_VH,
+          vhPxRef.current,
+          0,
+          leftFinalInkBottom,
+          leftFinalRect.bottom
+        ),
+        revealRightFinalStartY: computeBottomY(
+          SLOT_HEIGHT_VH,
+          vhPxRef.current,
+          0,
+          rightFinalInkTop,
+          rightFinalRect.top
+        ),
         leftStartX: -leftRect.left - leftRect.width - OFFSCREEN_PAD_PX,
         rightStartX: vw - rightRect.left + OFFSCREEN_PAD_PX,
+        revealScaleX,
       };
 
       if (!visible) {
@@ -342,10 +387,27 @@ export default function HeroWordmarks({
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [reducedMotion, leftX, rightX, visible, introComplete]);
+  }, [reducedMotion, leftX, rightX, visible, introComplete, useFinalStyle]);
 
   useEffect(() => {
     if (reducedMotion) return;
+
+    if (introComplete) {
+      setUseFinalStyle(true);
+      return;
+    }
+
+    const check = (vert: number) => {
+      if (vert > 0.001) setUseFinalStyle(true);
+    };
+
+    check(revealVertical.get());
+    return revealVertical.on("change", check);
+  }, [reducedMotion, revealVertical, introComplete]);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    if (!introSequenceReady) return;
 
     const m = measureRef.current;
     if (!m) return;
@@ -375,44 +437,23 @@ export default function HeroWordmarks({
     return () => {
       cancelled = true;
     };
-  }, [reducedMotion, leftX, rightX]);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-
-    if (introComplete) {
-      atFinalStyleRef.current = true;
-      setAtFinalStyle(true);
-      return;
-    }
-
-    const check = (vert: number) => {
-      if (atFinalStyleRef.current) return;
-      if (vert >= 1) {
-        atFinalStyleRef.current = true;
-        setAtFinalStyle(true);
-      }
-    };
-
-    check(revealVertical.get());
-    return revealVertical.on("change", check);
-  }, [reducedMotion, revealVertical, introComplete]);
+  }, [reducedMotion, introSequenceReady, leftX, rightX]);
 
   const wordmarkStyle = {
     fontSize: HERO_WORDMARK.fontSize,
     paddingInline: HERO_WORDMARK.insetInline,
   } as const;
 
-  const leftWordClass = atFinalStyle ? "hero-wordmark-top" : "hero-wordmark-stack";
-  const rightWordClass = atFinalStyle
+  const leftWordClass = useFinalStyle ? "hero-wordmark-top" : "hero-wordmark-stack";
+  const rightWordClass = useFinalStyle
     ? "hero-wordmark-bottom"
     : "hero-wordmark-stack";
-  const leftLineHeight = atFinalStyle ? 0.9 : 1;
-  const rightLineHeight = atFinalStyle ? 0.3 : 1;
+  const leftLineHeight = useFinalStyle ? 0.9 : 1;
+  const rightLineHeight = useFinalStyle ? 0.3 : 1;
 
   return (
     <div
-      className={`pointer-events-none absolute inset-0 z-[196] overflow-visible ${className}`}
+      className={`pointer-events-none absolute inset-0 z-[196] overflow-visible mix-blend-difference ${className}`}
       style={wordmarkStyle}
     >
       <div
@@ -470,13 +511,13 @@ export default function HeroWordmarks({
           measureRef={leftMeasureRef}
           wordClass={leftWordClass}
           label={site.wordmark.left}
+          originClass="origin-top"
           style={{
             lineHeight: leftLineHeight,
             x: leftX,
             y: leftY,
+            scaleX: leftScaleX,
             opacity: visible ? 1 : 0,
-            blackOpacity: resolvedBlackOpacity,
-            redOpacity: resolvedRedOpacity,
           }}
         />
       </span>
@@ -489,14 +530,13 @@ export default function HeroWordmarks({
           measureRef={rightMeasureRef}
           wordClass={rightWordClass}
           label={site.wordmark.right}
+          originClass="origin-bottom"
           style={{
             lineHeight: rightLineHeight,
-            scaleX: STUDIO_SCALE_X,
             x: rightX,
             y: rightY,
+            scaleX: rightScaleX,
             opacity: visible ? 1 : 0,
-            blackOpacity: resolvedBlackOpacity,
-            redOpacity: resolvedRedOpacity,
           }}
         />
       </span>

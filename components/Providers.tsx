@@ -24,6 +24,9 @@ type UIState = {
   setIntroScrollEnabled: (v: boolean) => void;
   introComplete: boolean;
   setIntroComplete: (v: boolean) => void;
+  /** Hero/intro media buffered — intro animation waits for this. */
+  introSequenceReady: boolean;
+  setIntroSequenceReady: (v: boolean) => void;
 };
 
 const UIContext = createContext<UIState | null>(null);
@@ -95,6 +98,7 @@ export default function Providers({ children }: { children: ReactNode }) {
   const [preloaderActive, setPreloaderActive] = useState(true);
   const [introScrollEnabled, setIntroScrollEnabled] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
+  const [introSequenceReady, setIntroSequenceReady] = useState(false);
 
   const value = useMemo(
     () => ({
@@ -108,8 +112,17 @@ export default function Providers({ children }: { children: ReactNode }) {
       setIntroScrollEnabled,
       introComplete,
       setIntroComplete,
+      introSequenceReady,
+      setIntroSequenceReady,
     }),
-    [menuOpen, loaderDone, preloaderActive, introScrollEnabled, introComplete]
+    [
+      menuOpen,
+      loaderDone,
+      preloaderActive,
+      introScrollEnabled,
+      introComplete,
+      introSequenceReady,
+    ]
   );
 
   return (

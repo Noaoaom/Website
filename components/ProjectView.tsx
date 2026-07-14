@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useRef, useState } from "react";
 import type { Project } from "@/lib/projects";
-import Footer, { FOOTER_TOTAL_DVH } from "./Footer";
+import Footer from "./Footer";
 import HoverLink, { HoverButton } from "./ui/HoverLink";
 import MediaCover from "./ui/MediaCover";
 import RevealText from "./ui/RevealText";
@@ -100,14 +100,7 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
         </div>
       </div>
 
-      {/* Scroll room so the sticky hero lifts away over the fixed footer. */}
-      <div
-        className="pointer-events-none relative z-10"
-        style={{ height: `${FOOTER_TOTAL_DVH}dvh` }}
-        aria-hidden
-      />
-
-      <Footer theme="black" />
+      <Footer theme="black" spacerClassName="relative z-10" />
     </main>
   );
 }
