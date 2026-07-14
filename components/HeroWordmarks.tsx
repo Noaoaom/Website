@@ -19,6 +19,18 @@ import { useUI } from "./Providers";
 const STUDIO_SCALE_X = 1.752095;
 const EASE = [0.22, 1, 0.36, 1] as const;
 const OFFSCREEN_PAD_PX = 48;
+const BRAND_RED = "#d60001";
+const WORDMARK_BLACK = "#000000";
+/** Crossfade starts once titles move off the red curtain. */
+const COLOR_REVEAL_START = 0.42;
+
+function wordmarkColorProgress(reveal: number) {
+  const delayed = Math.max(
+    0,
+    Math.min(1, (reveal - COLOR_REVEAL_START) / (1 - COLOR_REVEAL_START))
+  );
+  return easeZoom(delayed);
+}
 
 let inkCanvasCtx: CanvasRenderingContext2D | null | undefined;
 
@@ -114,12 +126,13 @@ type WordmarkLayerProps = {
   measureRef: RefObject<HTMLSpanElement | null>;
   wordClass: string;
   label: string;
-  introComplete: boolean;
   style: {
     lineHeight: number;
     x: MotionValue<number>;
     y: MotionValue<number>;
     opacity: number;
+    blackOpacity: MotionValue<number> | number;
+    redOpacity: MotionValue<number> | number;
     scaleX?: number;
   };
 };
@@ -131,20 +144,40 @@ function WordmarkLayer({
   measureRef,
   wordClass,
   label,
-  introComplete,
   style,
 }: WordmarkLayerProps) {
-  const originClass = style.scaleX !== undefined ? "origin-center" : "";
+  const { lineHeight, x, y, opacity, blackOpacity, redOpacity, scaleX } =
+    style;
+  const originClass = scaleX !== undefined ? "origin-center" : "";
   const typographyClass = `${wordmarkTypography} ${wordClass}`;
-  const colorClass = introComplete ? "text-brand-red" : "text-black";
 
   return (
     <motion.span
-      ref={measureRef}
-      className={`${typographyClass} relative inline-block will-change-transform ${colorClass} ${originClass}`}
-      style={style}
+      className={`relative inline-grid will-change-transform ${originClass}`}
+      style={{ lineHeight, x, y, scaleX, opacity }}
     >
-      {label}
+      <motion.span
+        ref={measureRef}
+        className={`${typographyClass} col-start-1 row-start-1 inline-block`}
+        style={{
+          opacity: blackOpacity,
+          color: WORDMARK_BLACK,
+          WebkitTextStrokeColor: WORDMARK_BLACK,
+        }}
+      >
+        {label}
+      </motion.span>
+      <motion.span
+        className={`${typographyClass} col-start-1 row-start-1 inline-block`}
+        aria-hidden
+        style={{
+          opacity: redOpacity,
+          color: BRAND_RED,
+          WebkitTextStrokeColor: BRAND_RED,
+        }}
+      >
+        {label}
+      </motion.span>
     </motion.span>
   );
 }
@@ -174,6 +207,12 @@ export default function HeroWordmarks({
 
   const leftX = useMotionValue(0);
   const rightX = useMotionValue(0);
+
+  const colorProgress = useTransform(revealVertical, wordmarkColorProgress);
+  const blackOpacity = useTransform(colorProgress, (t) => 1 - t);
+  const redOpacity = useTransform(colorProgress, (t) => t);
+  const resolvedBlackOpacity = reducedMotion ? 0 : blackOpacity;
+  const resolvedRedOpacity = reducedMotion ? 1 : redOpacity;
 
   const leftY = useTransform(
     [outerHeightVh, revealVertical],
@@ -431,12 +470,13 @@ export default function HeroWordmarks({
           measureRef={leftMeasureRef}
           wordClass={leftWordClass}
           label={site.wordmark.left}
-          introComplete={introComplete}
           style={{
             lineHeight: leftLineHeight,
             x: leftX,
             y: leftY,
             opacity: visible ? 1 : 0,
+            blackOpacity: resolvedBlackOpacity,
+            redOpacity: resolvedRedOpacity,
           }}
         />
       </span>
@@ -449,13 +489,14 @@ export default function HeroWordmarks({
           measureRef={rightMeasureRef}
           wordClass={rightWordClass}
           label={site.wordmark.right}
-          introComplete={introComplete}
           style={{
             lineHeight: rightLineHeight,
             scaleX: STUDIO_SCALE_X,
             x: rightX,
             y: rightY,
             opacity: visible ? 1 : 0,
+            blackOpacity: resolvedBlackOpacity,
+            redOpacity: resolvedRedOpacity,
           }}
         />
       </span>

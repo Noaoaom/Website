@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
+import { cropInsetXY, easeZoom } from "@/lib/cropReveal";
 import type { Project } from "@/lib/projects";
 import MediaCover from "./ui/MediaCover";
 import ScrollRevealText, { TEXT_TRANSITION_SPEED } from "./ui/ScrollRevealText";
@@ -10,7 +11,11 @@ import ScrollRevealText, { TEXT_TRANSITION_SPEED } from "./ui/ScrollRevealText";
 /** Overlap for first project entering over the pinned hero. */
 export const HERO_OVERLAP_VH = 50;
 
-import { easeZoom } from "@/lib/cropReveal";
+/** X starts tighter; Y holds, then expands after X is further along. */
+const CROP_START_X = 0.55;
+const CROP_HOLD_Y = 0.7;
+/** Y only leaves the hold once X reaches this. */
+const CROP_Y_RELEASE = 0.85;
 
 function easeFade(t: number): number {
   const clamped = Math.min(Math.max(t, 0), 1);
@@ -54,9 +59,13 @@ export default function ProjectSection({
 
   const revealCrop = useTransform(enterProgress, (progress) => {
     const t = easeZoom(Math.min(Math.max(progress, 0), 1));
-    const visible = 0.45 + t * 0.55;
-    const inset = ((1 - visible) / 2) * 100;
-    return `inset(${inset}% ${inset}% ${inset}% ${inset}%)`;
+    const visibleX = CROP_START_X + t * (1 - CROP_START_X);
+    const yRaw =
+      visibleX <= CROP_Y_RELEASE
+        ? 0
+        : (visibleX - CROP_Y_RELEASE) / (1 - CROP_Y_RELEASE);
+    const visibleY = CROP_HOLD_Y + easeFade(yRaw) * (1 - CROP_HOLD_Y);
+    return cropInsetXY(visibleX, visibleY);
   });
 
   const metaLeftX = useTransform(

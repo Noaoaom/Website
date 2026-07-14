@@ -38,7 +38,7 @@ h6 {
 }
 
 .hero-title-stroke {
-  -webkit-text-stroke: var(--hero-title-stroke) currentColor;
+  -webkit-text-stroke-width: var(--hero-title-stroke);
   paint-order: stroke fill;
 }
 

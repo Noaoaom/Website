@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useRef, useState } from "react";
 import type { Project } from "@/lib/projects";
-import Footer from "./Footer";
+import Footer, { FOOTER_TOTAL_DVH } from "./Footer";
 import HoverLink, { HoverButton } from "./ui/HoverLink";
 import MediaCover from "./ui/MediaCover";
 import RevealText from "./ui/RevealText";
@@ -26,7 +26,7 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
 
   return (
     <main className="relative min-h-dvh bg-black">
-      <div ref={heroRef} className="relative sticky top-0 z-0 h-dvh w-full overflow-hidden">
+      <div ref={heroRef} className="relative sticky top-0 z-10 h-dvh w-full overflow-hidden">
         <motion.div
           className="relative h-full w-full will-change-transform"
           style={{ scale: mediaScale }}
@@ -100,9 +100,14 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
         </div>
       </div>
 
-      <div className="relative z-40 bg-black">
-        <Footer theme="black" />
-      </div>
+      {/* Scroll room so the sticky hero lifts away over the fixed footer. */}
+      <div
+        className="pointer-events-none relative z-10"
+        style={{ height: `${FOOTER_TOTAL_DVH}dvh` }}
+        aria-hidden
+      />
+
+      <Footer theme="black" />
     </main>
   );
 }

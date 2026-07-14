@@ -30,3 +30,12 @@ export function cropInsetHorizontal(visibleWidth: number): string {
   const insetX = ((1 - clamped) / 2) * 100;
   return `inset(0% ${insetX}% 0% ${insetX}%)`;
 }
+
+/** Independent X/Y visible fractions → centered clip-path inset. */
+export function cropInsetXY(visibleX: number, visibleY: number): string {
+  const cx = Math.min(Math.max(visibleX, 0), 1);
+  const cy = Math.min(Math.max(visibleY, 0), 1);
+  const insetX = ((1 - cx) / 2) * 100;
+  const insetY = ((1 - cy) / 2) * 100;
+  return `inset(${insetY}% ${insetX}% ${insetY}% ${insetX}%)`;
+}

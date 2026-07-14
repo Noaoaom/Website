@@ -4,7 +4,7 @@ import { useScroll, useTransform } from "motion/react";
 import { useCallback, useRef, useState } from "react";
 import { heroMedia, projects } from "@/lib/projects";
 import { useUI } from "./Providers";
-import Footer from "./Footer";
+import Footer, { FOOTER_TOTAL_DVH } from "./Footer";
 import HeroContent from "./Hero";
 import HeroWordmarks from "./HeroWordmarks";
 import IntroCurtain, { type IntroMediaItem } from "./IntroCurtain";
@@ -121,6 +121,13 @@ export default function HomePage() {
           />
         ))}
       </div>
+
+      {/* Scroll room: last project moves up over the fixed footer waiting below. */}
+      <div
+        className="pointer-events-none relative z-[2]"
+        style={{ height: `${FOOTER_TOTAL_DVH}dvh` }}
+        aria-hidden
+      />
 
       <Footer theme="red" />
     </main>
