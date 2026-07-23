@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { motion, useScroll, useTransform, type MotionValue } from "motion/react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { easeZoom } from "@/lib/cropReveal";
 import { site } from "@/lib/site";
 import FooterWordmark, { type FooterWordmarkMeasure } from "./FooterWordmark";
 import HoverLink from "./ui/HoverLink";
+import InstagramLink from "./ui/InstagramLink";
 
 type FooterProps = {
   theme?: "black" | "red";
@@ -30,10 +31,6 @@ const CONTACTS_OFFSET_PX = 96;
 const META_ROW_OFFSET_VH = 12;
 
 function useFooterRevealMotion(scrollYProgress: MotionValue<number>) {
-  const vhPxRef = useRef(
-    typeof window !== "undefined" ? window.innerHeight : 800
-  );
-
   const eased = useTransform(scrollYProgress, (p) =>
     easeZoom(Math.min(Math.max(p, 0), 1))
   );
@@ -54,12 +51,12 @@ function useFooterRevealMotion(scrollYProgress: MotionValue<number>) {
     (t) => (1 - t) * -CONTACTS_OFFSET_PX
   );
 
-  const metaRowY = useTransform(metaEased, (t) => {
-    const offset = (META_ROW_OFFSET_VH / 100) * vhPxRef.current;
-    return (1 - t) * offset;
-  });
+  const metaRowY = useTransform(
+    metaEased,
+    (t) => `${(1 - t) * META_ROW_OFFSET_VH}dvh`
+  );
 
-  return { wordmarkScale, contactsY, metaRowY, vhPxRef };
+  return { wordmarkScale, contactsY, metaRowY };
 }
 
 function buildFooterHeight(titleBandHeightPx: number) {
@@ -79,29 +76,21 @@ export default function Footer({
   const fg = isRed ? "#000000" : "#D60001";
   const revealRef = useRef<HTMLDivElement>(null);
   const [titleBandHeightPx, setTitleBandHeightPx] = useState(0);
+  const [wordmarkTopInsetPx, setWordmarkTopInsetPx] = useState(0);
 
   const { scrollYProgress } = useScroll({
     target: revealRef,
     offset: ["start end", "end end"],
   });
 
-  const { wordmarkScale, contactsY, metaRowY, vhPxRef } =
+  const { wordmarkScale, contactsY, metaRowY } =
     useFooterRevealMotion(scrollYProgress);
   const footerHeight = buildFooterHeight(titleBandHeightPx);
 
   const handleWordmarkMeasure = useCallback((measure: FooterWordmarkMeasure) => {
     setTitleBandHeightPx(Math.ceil(measure.heightPx));
+    setWordmarkTopInsetPx(Math.ceil(measure.topInsetPx));
   }, []);
-
-  useLayoutEffect(() => {
-    const syncViewport = () => {
-      vhPxRef.current = window.innerHeight;
-    };
-
-    syncViewport();
-    window.addEventListener("resize", syncViewport);
-    return () => window.removeEventListener("resize", syncViewport);
-  }, [vhPxRef]);
 
   return (
     <>
@@ -138,29 +127,25 @@ export default function Footer({
               </HoverLink>
             </div>
 
-            <div className="flex flex-col gap-2 text-center md:gap-4">
+            <div className="flex flex-col items-center gap-2 text-center md:gap-4">
               <span className="block font-ivar text-[32px] uppercase leading-none md:text-[45px]">
                 Social
               </span>
-              <HoverLink
-                href={site.instagram.url}
-                className="font-helvetica text-[15px] uppercase md:text-[21px]"
-              >
-                {site.instagram.handle}
-              </HoverLink>
+              <div className="flex w-full justify-center">
+                <InstagramLink className="font-helvetica text-[15px] uppercase md:text-[21px]" />
+              </div>
             </div>
           </div>
         </motion.div>
 
         <div
-          className="relative flex w-screen max-w-[100vw] shrink-0 items-start justify-center overflow-visible pt-[0.06em]"
+          className="relative -mx-6 flex w-[calc(100%+3rem)] shrink-0 items-start justify-center overflow-x-clip lg:-mx-12 lg:w-[calc(100%+6rem)]"
           style={{
             height:
               titleBandHeightPx > 0
                 ? `${titleBandHeightPx}px`
                 : `${FOOTER_TITLE_FALLBACK_DVH}dvh`,
-            left: "50%",
-            transform: "translateX(-50%)",
+            paddingTop: wordmarkTopInsetPx > 0 ? `${wordmarkTopInsetPx}px` : undefined,
           }}
           aria-hidden
         >
@@ -179,10 +164,10 @@ export default function Footer({
               {site.copyright}
             </p>
             <Link
-              href={site.credits.url}
+              href={site.impressum.url}
               className="font-helvetica text-[15px] uppercase leading-normal tracking-widest transition-opacity hover:opacity-70 md:text-[18px]"
             >
-              {site.credits.label}
+              {site.impressum.label}
             </Link>
           </div>
         </motion.div>

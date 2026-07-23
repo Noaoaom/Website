@@ -89,7 +89,7 @@ export default function HomePage() {
   }, [setIntroScrollEnabled, setIntroComplete, setPreloaderActive]);
 
   return (
-    <main className="relative bg-black">
+    <main className="relative overflow-x-clip bg-black">
       <MediaPreloader />
       <IntroSequenceBootstrap />
       <div

@@ -25,7 +25,7 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
   const mediaScale = useTransform(scrollYProgress, [0, 0.45], [0.92, 1]);
 
   return (
-    <main className="relative min-h-dvh bg-black">
+    <main className="relative min-h-dvh overflow-x-clip bg-black">
       <div ref={heroRef} className="relative sticky top-0 z-10 h-dvh w-full overflow-hidden">
         <motion.div
           className="relative h-full w-full will-change-transform"

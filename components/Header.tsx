@@ -19,7 +19,7 @@ const navTextClass =
 const SCROLL_REVEAL_VH = 0.7;
 
 export default function Header() {
-  const { loaderDone, menuOpen, setMenuOpen } = useUI();
+  const { loaderDone, menuOpen, setMenuOpen, closeMenu } = useUI();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function Header() {
           >
             <HoverButton
               className={`cursor-pointer ${navTextClass}`}
-              onClick={() => setMenuOpen(!menuOpen)}
+              onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
             >
               {menuOpen ? "close" : "menu"}
             </HoverButton>

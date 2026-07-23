@@ -7,6 +7,7 @@ import { site } from "@/lib/site";
 export type FooterWordmarkMeasure = {
   fontSizePx: number;
   heightPx: number;
+  topInsetPx: number;
 };
 
 type FooterWordmarkProps = {
@@ -39,9 +40,10 @@ export default function FooterWordmark({
       const nextFontSizePx = (targetWidth / widthAtRef) * REF_FONT_PX;
       el.style.fontSize = `${nextFontSizePx}px`;
 
-      const heightPx = el.getBoundingClientRect().height;
+      const topInsetPx = nextFontSizePx * 0.08;
+      const heightPx = el.getBoundingClientRect().height + topInsetPx;
       setFitFontSizePx(nextFontSizePx);
-      onMeasureRef.current?.({ fontSizePx: nextFontSizePx, heightPx });
+      onMeasureRef.current?.({ fontSizePx: nextFontSizePx, heightPx, topInsetPx });
     };
 
     fit();
@@ -55,7 +57,7 @@ export default function FooterWordmark({
   return (
     <motion.span
       ref={ref}
-      className="hero-wordmark-text hero-wordmark-top inline-block origin-top whitespace-nowrap text-center font-ivar uppercase leading-none text-black"
+      className="hero-wordmark-text inline-block origin-top whitespace-nowrap text-center font-ivar uppercase leading-none text-black"
       style={{ fontSize }}
     >
       {site.wordmark.left}

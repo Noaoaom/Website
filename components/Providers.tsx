@@ -4,6 +4,7 @@ import { ReactLenis, useLenis } from "lenis/react";
 import {
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -12,10 +13,15 @@ import {
 import Header from "./Header";
 import MenuOverlay from "./MenuOverlay";
 import Cursor from "./Cursor";
+import type { MenuPanel } from "@/lib/menuPanels";
 
 type UIState = {
   menuOpen: boolean;
   setMenuOpen: (v: boolean) => void;
+  menuPanel: MenuPanel | null;
+  openMenuPanel: (panel: MenuPanel) => void;
+  closeMenuPanel: () => void;
+  closeMenu: () => void;
   loaderDone: boolean;
   setLoaderDone: (v: boolean) => void;
   preloaderActive: boolean;
@@ -94,16 +100,34 @@ function LenisIntroLock() {
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPanel, setMenuPanel] = useState<MenuPanel | null>(null);
   const [loaderDone, setLoaderDone] = useState(false);
   const [preloaderActive, setPreloaderActive] = useState(true);
   const [introScrollEnabled, setIntroScrollEnabled] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const [introSequenceReady, setIntroSequenceReady] = useState(false);
 
+  const openMenuPanel = useCallback((panel: MenuPanel) => {
+    setMenuPanel(panel);
+  }, []);
+
+  const closeMenuPanel = useCallback(() => {
+    setMenuPanel(null);
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    setMenuPanel(null);
+  }, []);
+
   const value = useMemo(
     () => ({
       menuOpen,
       setMenuOpen,
+      menuPanel,
+      openMenuPanel,
+      closeMenuPanel,
+      closeMenu,
       loaderDone,
       setLoaderDone,
       preloaderActive,
@@ -117,6 +141,10 @@ export default function Providers({ children }: { children: ReactNode }) {
     }),
     [
       menuOpen,
+      menuPanel,
+      openMenuPanel,
+      closeMenuPanel,
+      closeMenu,
       loaderDone,
       preloaderActive,
       introScrollEnabled,
@@ -130,13 +158,13 @@ export default function Providers({ children }: { children: ReactNode }) {
       <ReactLenis
         root
         options={{
-          lerp: 0.03,
+          lerp: 0.12,
           smoothWheel: true,
-          wheelMultiplier: 0.38,
-          touchMultiplier: 0.72,
+          wheelMultiplier: 0.72,
+          touchMultiplier: 1,
           syncTouch: true,
-          syncTouchLerp: 0.035,
-          touchInertiaExponent: 2.2,
+          syncTouchLerp: 0.12,
+          touchInertiaExponent: 1.8,
         }}
       >
         <LenisScrollBridge />

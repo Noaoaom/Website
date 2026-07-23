@@ -453,7 +453,7 @@ export default function HeroWordmarks({
 
   return (
     <div
-      className={`pointer-events-none absolute inset-0 z-[196] overflow-visible mix-blend-difference ${className}`}
+      className={`pointer-events-none absolute inset-0 z-[196] overflow-hidden mix-blend-difference ${className}`}
       style={wordmarkStyle}
     >
       <div
