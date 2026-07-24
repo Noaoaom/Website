@@ -63,6 +63,7 @@ export default function HomePage() {
     setPreloaderActive(false);
 
     const rm = reelMotionRef.current;
+    rm.wordmarkRevealReady.set(1);
     rm.slotOpen.set(1);
     rm.revealHorizontal.set(1);
     rm.revealVertical.set(1);

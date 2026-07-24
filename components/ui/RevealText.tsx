@@ -43,7 +43,7 @@ export default function RevealText({
     <Tag ref={ref as never} className={className}>
       {words.map((word, wi) => (
         <span key={`${word}-${wi}`} className="inline-block">
-          <span className="inline-flex items-baseline whitespace-nowrap overflow-hidden py-[0.3em] -my-[0.3em] px-[0.1em] -mx-[0.1em] leading-none">
+          <span className="inline-flex items-baseline whitespace-nowrap overflow-hidden px-[0.1em] -mx-[0.1em] py-[0.35em] -my-[0.35em] leading-[1.1]">
             {Array.from(word).map((char, ci) => (
               <span key={`${wi}-${ci}`} className="inline-block overflow-hidden">
                 <motion.span

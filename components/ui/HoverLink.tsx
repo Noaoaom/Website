@@ -14,11 +14,11 @@ type BaseProps = {
 
 function Char({ char }: { char: string }) {
   return (
-    <span className="relative -mx-[0.1em] inline-block overflow-hidden px-[0.1em]">
-      <span className="block transition-transform duration-300 ease-out group-hover:-translate-y-full">
+    <span className="relative -mx-[0.1em] inline-block overflow-hidden px-[0.1em] py-[0.15em]">
+      <span className="block leading-[1.2] transition-transform duration-300 ease-out group-hover:-translate-y-full">
         {char}
       </span>
-      <span className="absolute inset-0 flex translate-y-[150%] items-center justify-center transition-transform duration-300 ease-out group-hover:translate-y-0">
+      <span className="absolute inset-0 flex translate-y-[150%] items-center justify-center leading-[1.2] transition-transform duration-300 ease-out group-hover:translate-y-0">
         {char}
       </span>
     </span>
@@ -36,9 +36,9 @@ function Inner({
 }) {
   return (
     <span
-      className={`group relative isolate -mx-[0.1em] inline-block overflow-hidden px-[0.1em] py-[0.25em] -my-[0.25em] ${className}`}
+      className={`group relative isolate -mx-[0.1em] inline-block overflow-hidden px-[0.1em] py-[0.4em] -my-[0.4em] ${className}`}
     >
-      <span className="relative flex flex-wrap uppercase leading-none">
+      <span className="relative flex flex-wrap uppercase leading-[1.2]">
         <span className="inline-flex whitespace-nowrap">
           {Array.from(children).map((char, i) => (
             <Char key={`${char}-${i}`} char={char} />

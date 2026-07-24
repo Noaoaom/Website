@@ -10,6 +10,7 @@ export function useIntroReelMotion() {
   const slotOpen = useMotionValue(0);
   const revealHorizontal = useMotionValue(0);
   const revealVertical = useMotionValue(0);
+  const wordmarkRevealReady = useMotionValue(0);
 
   const outerHeightVh = useTransform(
     [slotOpen, revealVertical],
@@ -35,6 +36,7 @@ export function useIntroReelMotion() {
     slotOpen,
     revealHorizontal,
     revealVertical,
+    wordmarkRevealReady,
     outerHeightVh,
     outerWidthVw,
   };

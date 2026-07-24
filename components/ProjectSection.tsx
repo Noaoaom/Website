@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "motion/react";
-import { useRef } from "react";
+import { useRef, type MouseEvent } from "react";
 import { cropInsetXY, easeZoom } from "@/lib/cropReveal";
 import type { Project } from "@/lib/projects";
+import { useUI } from "./Providers";
 import MediaCover from "./ui/MediaCover";
 import ScrollRevealText, { TEXT_TRANSITION_SPEED } from "./ui/ScrollRevealText";
 
@@ -34,6 +35,7 @@ export default function ProjectSection({
   overlapPrevious = 0,
 }: ProjectSectionProps) {
   const sectionRef = useRef<HTMLElement>(null);
+  const { startProjectTransition, projectTransitionSlug } = useUI();
   const isRedBg = index % 2 === 1;
 
   const { scrollYProgress: enterProgress } = useScroll({
@@ -108,6 +110,13 @@ export default function ProjectSection({
     }
   );
 
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (projectTransitionSlug) return;
+    startProjectTransition(project.slug);
+  };
+
   return (
     <section
       ref={sectionRef}
@@ -122,6 +131,7 @@ export default function ProjectSection({
       <Link
         href={`/project/${project.slug}`}
         className="group relative block h-full w-full"
+        onClick={handleClick}
       >
         <div className="absolute inset-0 h-dvh w-full overflow-hidden">
           <motion.div

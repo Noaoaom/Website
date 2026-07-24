@@ -20,6 +20,9 @@ const itemMotion = (index: number) => ({
   },
 });
 
+const menuShellClass =
+  "flex h-full min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 pb-[max(3rem,env(safe-area-inset-bottom,0px))] pt-[calc(5.5rem+env(safe-area-inset-top,0px))] md:pt-[calc(7.5rem+env(safe-area-inset-top,0px))] lg:px-12";
+
 export default function MenuOverlay() {
   const {
     menuOpen,
@@ -61,22 +64,22 @@ export default function MenuOverlay() {
       {menuOpen ? (
         <motion.div
           data-lenis-prevent
-          className="fixed inset-0 z-[3000] overflow-hidden bg-black text-brand-red"
+          className="fixed inset-0 z-[3000] flex flex-col overflow-hidden bg-black text-brand-red"
           initial={{ clipPath: "inset(0 0 100% 0)" }}
           animate={{ clipPath: "inset(0 0 0% 0)" }}
           exit={{ clipPath: "inset(0 0 100% 0)" }}
           transition={MENU_CURTAIN_TRANSITION}
         >
-          <div className="flex h-dvh flex-col overflow-hidden px-4 pb-12 pt-[100px] md:pt-[120px] lg:px-12">
+          <div className={menuShellClass}>
             <HoverButton
-              className="mb-6 font-helvetica text-[15px] uppercase md:mb-8 md:text-[21px]"
+              className="mb-6 shrink-0 font-helvetica text-[15px] uppercase md:mb-8 md:text-[21px]"
               underline={false}
               onClick={closeMenu}
             >
               Back
             </HoverButton>
 
-            <div className="mb-8 flex flex-col md:mb-10">
+            <div className="mb-8 flex flex-col overflow-visible md:mb-10">
               <RevealText
                 as="h2"
                 text={site.wordmark.left}
@@ -85,7 +88,7 @@ export default function MenuOverlay() {
               <RevealText
                 as="span"
                 text={site.wordmark.right}
-                className="font-ivar text-[48px] uppercase leading-[0.3] md:text-[64px] lg:text-[72px]"
+                className="-mt-[0.12em] font-ivar text-[48px] uppercase leading-[0.85] md:text-[64px] lg:text-[72px]"
                 delay={0.18}
               />
             </div>
@@ -115,17 +118,17 @@ export default function MenuOverlay() {
               <motion.div
                 key={menuPanel}
                 data-lenis-prevent
-                className="absolute inset-0 z-10 overflow-hidden bg-brand-red text-black pointer-events-auto"
+                className="absolute inset-0 z-10 flex flex-col overflow-hidden bg-brand-red text-black pointer-events-auto"
                 initial={{ clipPath: "inset(0 0 100% 0)" }}
                 animate={{ clipPath: "inset(0 0 0% 0)" }}
                 exit={{ clipPath: "inset(0 0 100% 0)" }}
                 transition={MENU_CURTAIN_TRANSITION}
               >
                 <div
-                  className={`h-full px-4 pb-12 pt-[100px] md:pt-[120px] lg:px-12 ${
+                  className={`${menuShellClass} ${
                     menuPanel === "impressum"
-                      ? "overflow-y-auto overscroll-contain no-scrollbar"
-                      : "overflow-hidden"
+                      ? "overscroll-contain no-scrollbar"
+                      : ""
                   }`}
                 >
                   <MenuPanelView panel={menuPanel} onBack={closeMenuPanel} />

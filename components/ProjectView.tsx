@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "motion/react";
-import { useRef, useState } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 import type { Project } from "@/lib/projects";
 import Footer from "./Footer";
 import HoverLink, { HoverButton } from "./ui/HoverLink";
 import MediaCover from "./ui/MediaCover";
 import RevealText from "./ui/RevealText";
+import { useUI } from "./Providers";
 
 type ProjectViewProps = {
   project: Project;
@@ -16,13 +17,21 @@ type ProjectViewProps = {
 
 export default function ProjectView({ project, nextProject }: ProjectViewProps) {
   const [infoOpen, setInfoOpen] = useState(false);
+  const { startProjectTransition, projectTransitionSlug } = useUI();
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
   });
 
-  const mediaScale = useTransform(scrollYProgress, [0, 0.45], [0.92, 1]);
+  const mediaScale = useTransform(scrollYProgress, [0, 0.45], [1, 1.04]);
+
+  const handleNextClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (projectTransitionSlug) return;
+    startProjectTransition(nextProject.slug);
+  };
 
   return (
     <main className="relative min-h-dvh overflow-x-clip bg-black">
@@ -36,8 +45,7 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
             video={project.video}
             alt={project.title}
             priority
-            fit="contain"
-            className="flex items-center justify-center"
+            fit="cover"
           />
         </motion.div>
 
@@ -94,6 +102,7 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
           <Link
             href={`/project/${nextProject.slug}`}
             className="pointer-events-auto hidden font-helvetica text-[15px] uppercase text-brand-red transition-opacity hover:opacity-70 md:inline-block md:text-[21px]"
+            onClick={handleNextClick}
           >
             Next — {nextProject.title}
           </Link>

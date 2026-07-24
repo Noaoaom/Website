@@ -194,8 +194,11 @@ export default function HeroWordmarks({
   className = "",
 }: HeroWordmarksProps) {
   const reducedMotion = useReducedMotion();
-  const { introComplete, introSequenceReady } = useUI();
-  const { outerHeightVh, revealVertical } = reelMotion;
+  const { introComplete, introSequenceReady, wordmarkRevealReady } = useUI();
+  const { outerHeightVh, revealVertical, wordmarkRevealReady: wordmarkRevealReadyMv } =
+    reelMotion;
+  const useFinalTypography =
+    Boolean(reducedMotion || introComplete || wordmarkRevealReady);
 
   const leftMeasureRef = useRef<HTMLSpanElement>(null);
   const rightMeasureRef = useRef<HTMLSpanElement>(null);
@@ -209,50 +212,51 @@ export default function HeroWordmarks({
   );
 
   const [visible, setVisible] = useState(Boolean(reducedMotion));
-  const [useFinalStyle, setUseFinalStyle] = useState(
-    Boolean(reducedMotion || introComplete)
-  );
 
   const leftX = useMotionValue(0);
   const rightX = useMotionValue(0);
 
   const leftY = useTransform(
-    [outerHeightVh, revealVertical],
-    ([h, vert]: number[]) => {
+    [outerHeightVh, revealVertical, wordmarkRevealReadyMv],
+    ([h, vert, typographyReady]: number[]) => {
       const m = measureRef.current;
       if (!m) return 0;
 
-      if (vert > 0.001) {
-        return m.revealLeftFinalStartY * (1 - easeZoom(vert));
+      if (typographyReady <= 0) {
+        return computeTopY(
+          h,
+          vhPxRef.current,
+          m.stackLeftY,
+          m.stackLeftBottom,
+          m.finalLeftBottom
+        );
       }
 
-      return computeTopY(
-        h,
-        vhPxRef.current,
-        m.stackLeftY,
-        m.stackLeftBottom,
-        m.finalLeftBottom
-      );
+      if (vert <= 0) return m.revealLeftFinalStartY;
+
+      return m.revealLeftFinalStartY * (1 - easeZoom(vert));
     }
   );
 
   const rightY = useTransform(
-    [outerHeightVh, revealVertical],
-    ([h, vert]: number[]) => {
+    [outerHeightVh, revealVertical, wordmarkRevealReadyMv],
+    ([h, vert, typographyReady]: number[]) => {
       const m = measureRef.current;
       if (!m) return 0;
 
-      if (vert > 0.001) {
-        return m.revealRightFinalStartY * (1 - easeZoom(vert));
+      if (typographyReady <= 0) {
+        return computeBottomY(
+          h,
+          vhPxRef.current,
+          m.stackRightY,
+          m.stackRightTop,
+          m.finalRightTop
+        );
       }
 
-      return computeBottomY(
-        h,
-        vhPxRef.current,
-        m.stackRightY,
-        m.stackRightTop,
-        m.finalRightTop
-      );
+      if (vert <= 0) return m.revealRightFinalStartY;
+
+      return m.revealRightFinalStartY * (1 - easeZoom(vert));
     }
   );
 
@@ -387,23 +391,7 @@ export default function HeroWordmarks({
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [reducedMotion, leftX, rightX, visible, introComplete, useFinalStyle]);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-
-    if (introComplete) {
-      setUseFinalStyle(true);
-      return;
-    }
-
-    const check = (vert: number) => {
-      if (vert > 0.001) setUseFinalStyle(true);
-    };
-
-    check(revealVertical.get());
-    return revealVertical.on("change", check);
-  }, [reducedMotion, revealVertical, introComplete]);
+  }, [reducedMotion, leftX, rightX, visible, introComplete, wordmarkRevealReady]);
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -444,12 +432,12 @@ export default function HeroWordmarks({
     paddingInline: HERO_WORDMARK.insetInline,
   } as const;
 
-  const leftWordClass = useFinalStyle ? "hero-wordmark-top" : "hero-wordmark-stack";
-  const rightWordClass = useFinalStyle
+  const leftWordClass = useFinalTypography ? "hero-wordmark-top" : "hero-wordmark-stack";
+  const rightWordClass = useFinalTypography
     ? "hero-wordmark-bottom"
     : "hero-wordmark-stack";
-  const leftLineHeight = useFinalStyle ? 0.9 : 1;
-  const rightLineHeight = useFinalStyle ? 0.3 : 1;
+  const leftLineHeight = useFinalTypography ? 0.9 : 1;
+  const rightLineHeight = useFinalTypography ? 0.3 : 1;
 
   return (
     <div

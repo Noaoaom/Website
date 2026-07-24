@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion, useScroll, useTransform, type MotionValue } from "motion/react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { easeZoom } from "@/lib/cropReveal";
 import { site } from "@/lib/site";
 import FooterWordmark, { type FooterWordmarkMeasure } from "./FooterWordmark";
@@ -15,8 +15,10 @@ type FooterProps = {
   spacerClassName?: string;
 };
 
-/** Contacts / social band. */
+/** Contacts / social band (desktop). */
 export const FOOTER_CONTENT_DVH = 22;
+/** Contacts / social band (mobile — stacked layout needs more room). */
+export const FOOTER_CONTENT_MOBILE_DVH = 32;
 /** Copyright + credits band below the wordmark. */
 export const FOOTER_META_DVH = 5;
 /** Fallback title band before wordmark measurement. */
@@ -24,13 +26,43 @@ export const FOOTER_TITLE_FALLBACK_DVH = 24;
 
 /** Full footer height fallback — also the scroll distance that reveals it. */
 export const FOOTER_TOTAL_DVH =
-  FOOTER_CONTENT_DVH + FOOTER_TITLE_FALLBACK_DVH + FOOTER_META_DVH;
+  FOOTER_CONTENT_MOBILE_DVH + FOOTER_TITLE_FALLBACK_DVH + FOOTER_META_DVH;
 
 const WORDMARK_SCALE_START = 0.72;
 const CONTACTS_OFFSET_PX = 96;
+const CONTACTS_OFFSET_MOBILE_PX = 40;
 const META_ROW_OFFSET_VH = 12;
+const FOOTER_TOP_PADDING_MOBILE_PX = 48;
 
-function useFooterRevealMotion(scrollYProgress: MotionValue<number>) {
+function useFooterLayout() {
+  const [layout, setLayout] = useState({
+    contentDvh: FOOTER_CONTENT_MOBILE_DVH,
+    contactsOffsetPx: CONTACTS_OFFSET_MOBILE_PX,
+    topPaddingPx: FOOTER_TOP_PADDING_MOBILE_PX,
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const mobile = window.innerWidth < 768;
+      setLayout({
+        contentDvh: mobile ? FOOTER_CONTENT_MOBILE_DVH : FOOTER_CONTENT_DVH,
+        contactsOffsetPx: mobile ? CONTACTS_OFFSET_MOBILE_PX : CONTACTS_OFFSET_PX,
+        topPaddingPx: mobile ? FOOTER_TOP_PADDING_MOBILE_PX : 0,
+      });
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return layout;
+}
+
+function useFooterRevealMotion(
+  scrollYProgress: MotionValue<number>,
+  contactsOffsetPx: number
+) {
   const eased = useTransform(scrollYProgress, (p) =>
     easeZoom(Math.min(Math.max(p, 0), 1))
   );
@@ -48,7 +80,7 @@ function useFooterRevealMotion(scrollYProgress: MotionValue<number>) {
 
   const contactsY = useTransform(
     eased,
-    (t) => (1 - t) * -CONTACTS_OFFSET_PX
+    (t) => (1 - t) * -contactsOffsetPx
   );
 
   const metaRowY = useTransform(
@@ -59,12 +91,19 @@ function useFooterRevealMotion(scrollYProgress: MotionValue<number>) {
   return { wordmarkScale, contactsY, metaRowY };
 }
 
-function buildFooterHeight(titleBandHeightPx: number) {
+function buildFooterHeight(
+  titleBandHeightPx: number,
+  contentDvh: number,
+  topPaddingPx: number
+) {
+  const topPad = topPaddingPx > 0 ? `${topPaddingPx}px + ` : "";
+  const safeBottom = "env(safe-area-inset-bottom, 0px)";
+
   if (titleBandHeightPx <= 0) {
-    return `${FOOTER_TOTAL_DVH}dvh`;
+    return `calc(${topPad}${contentDvh}dvh + ${FOOTER_TITLE_FALLBACK_DVH}dvh + ${FOOTER_META_DVH}dvh + ${safeBottom})`;
   }
 
-  return `calc(${FOOTER_CONTENT_DVH}dvh + ${titleBandHeightPx}px + ${FOOTER_META_DVH}dvh)`;
+  return `calc(${topPad}${contentDvh}dvh + ${titleBandHeightPx}px + ${FOOTER_META_DVH}dvh + ${safeBottom})`;
 }
 
 export default function Footer({
@@ -77,6 +116,7 @@ export default function Footer({
   const revealRef = useRef<HTMLDivElement>(null);
   const [titleBandHeightPx, setTitleBandHeightPx] = useState(0);
   const [wordmarkTopInsetPx, setWordmarkTopInsetPx] = useState(0);
+  const { contentDvh, contactsOffsetPx, topPaddingPx } = useFooterLayout();
 
   const { scrollYProgress } = useScroll({
     target: revealRef,
@@ -84,8 +124,12 @@ export default function Footer({
   });
 
   const { wordmarkScale, contactsY, metaRowY } =
-    useFooterRevealMotion(scrollYProgress);
-  const footerHeight = buildFooterHeight(titleBandHeightPx);
+    useFooterRevealMotion(scrollYProgress, contactsOffsetPx);
+  const footerHeight = buildFooterHeight(
+    titleBandHeightPx,
+    contentDvh,
+    topPaddingPx
+  );
 
   const handleWordmarkMeasure = useCallback((measure: FooterWordmarkMeasure) => {
     setTitleBandHeightPx(Math.ceil(measure.heightPx));
@@ -102,7 +146,7 @@ export default function Footer({
       />
 
       <footer
-        className="pointer-events-auto fixed inset-x-0 bottom-0 z-0 flex w-full flex-col overflow-x-hidden px-6 transition-colors duration-700 lg:px-12"
+        className="pointer-events-auto fixed inset-x-0 bottom-0 z-0 flex w-full flex-col overflow-x-hidden px-6 pt-12 transition-colors duration-700 md:pt-0 lg:px-12"
         style={{
           height: footerHeight,
           maxHeight: footerHeight,
@@ -111,10 +155,10 @@ export default function Footer({
         }}
       >
         <motion.div
-          className="flex shrink-0 flex-col justify-center py-8"
-          style={{ height: `${FOOTER_CONTENT_DVH}dvh`, y: contactsY }}
+          className="footer-contacts-band flex shrink-0 flex-col justify-start py-6 md:justify-center md:py-8"
+          style={{ y: contactsY }}
         >
-          <div className="flex w-full flex-col items-center justify-around gap-8 md:flex-row md:items-start">
+          <div className="flex w-full flex-col items-center justify-start gap-6 md:flex-row md:items-start md:justify-around md:gap-8">
             <div className="flex flex-col gap-2 text-center md:gap-4">
               <span className="block font-ivar text-[32px] uppercase leading-none md:text-[45px]">
                 Contacts
@@ -157,10 +201,10 @@ export default function Footer({
 
         <motion.div className="w-full shrink-0" style={{ y: metaRowY }}>
           <div
-            className="flex w-full flex-row items-center justify-between gap-3 pb-5 pt-1 text-left"
+            className="flex w-full flex-col items-start gap-3 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-2 text-left md:flex-row md:items-center md:justify-between md:gap-3 md:pb-5 md:pt-1"
             style={{ minHeight: `${FOOTER_META_DVH}dvh` }}
           >
-            <p className="font-helvetica text-[15px] uppercase leading-normal tracking-widest md:text-[18px]">
+            <p className="max-w-full font-helvetica text-[13px] uppercase leading-normal tracking-widest md:text-[18px]">
               {site.copyright}
             </p>
             <Link

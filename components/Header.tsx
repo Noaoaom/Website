@@ -9,7 +9,7 @@ import LogoText from "./LogoText";
 import HoverLink, { HoverButton } from "./ui/HoverLink";
 
 const navTextClass =
-  "font-ivar text-[21px] uppercase leading-none md:text-[30px]";
+  "font-ivar text-[21px] uppercase leading-tight md:text-[30px] md:leading-none";
 
 /**
  * Die erste Projekt-Section bedeckt beim Scrollen genau `scrollY` Pixel des
@@ -17,6 +17,8 @@ const navTextClass =
  * und der Dickhausen-Titel verdeckt ist.
  */
 const SCROLL_REVEAL_VH = 0.7;
+
+const navClipClass = "overflow-hidden py-3 -my-3 md:py-2 md:-my-2";
 
 export default function Header() {
   const { loaderDone, menuOpen, setMenuOpen, closeMenu } = useUI();
@@ -51,10 +53,10 @@ export default function Header() {
   };
 
   return (
-    <header className="pointer-events-none fixed left-0 top-[20px] z-[150] w-full lg:top-[40px]">
+    <header className="pointer-events-none fixed left-0 top-0 z-[150] w-full pt-[max(20px,env(safe-area-inset-top,0px))] lg:pt-[max(40px,env(safe-area-inset-top,0px))]">
       <div className="relative grid w-full grid-cols-[1fr_auto_1fr] items-start px-4 lg:px-12">
         <div
-          className={`justify-self-start overflow-hidden ${
+          className={`justify-self-start ${navClipClass} ${
             navVisible ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
@@ -69,7 +71,7 @@ export default function Header() {
           </motion.div>
         </div>
 
-        <div className="pointer-events-auto justify-self-center overflow-hidden">
+        <div className={`pointer-events-auto justify-self-center ${navClipClass}`}>
           <motion.div
             initial={{ y: "-100%" }}
             animate={{ y: loaderDone ? 0 : "-100%" }}
@@ -84,7 +86,7 @@ export default function Header() {
         </div>
 
         <div
-          className={`justify-self-end overflow-hidden ${
+          className={`justify-self-end ${navClipClass} ${
             navVisible ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >

@@ -16,6 +16,7 @@ type FooterWordmarkProps = {
 };
 
 const REF_FONT_PX = 100;
+const footerLabel = `${site.wordmark.left}\u00A0${site.wordmark.right}`;
 
 export default function FooterWordmark({
   revealScale,
@@ -60,7 +61,7 @@ export default function FooterWordmark({
       className="hero-wordmark-text inline-block origin-top whitespace-nowrap text-center font-ivar uppercase leading-none text-black"
       style={{ fontSize }}
     >
-      {site.wordmark.left}
+      {footerLabel}
     </motion.span>
   );
 }

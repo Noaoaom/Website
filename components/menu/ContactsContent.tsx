@@ -34,14 +34,14 @@ export default function ContactsContent({ variant, onBack }: ContactsContentProp
             Back
           </HoverLink>
         )}
-        <h1 className="font-ivar text-[48px] uppercase leading-[0.85] md:text-[80px]">
+        <h1 className="font-ivar text-[48px] uppercase leading-[0.95] md:text-[80px] md:leading-[0.85]">
           Contacts
         </h1>
       </div>
 
       <div className="flex flex-col gap-12 md:flex-row md:gap-24">
         <div className="flex flex-col gap-3 md:gap-4">
-          <span className="block font-ivar text-[32px] uppercase leading-none md:text-[45px]">
+          <span className="block font-ivar text-[32px] uppercase leading-[1.05] md:text-[45px] md:leading-none">
             Contacts
           </span>
           <HoverLink

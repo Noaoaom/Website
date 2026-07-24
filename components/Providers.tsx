@@ -13,6 +13,7 @@ import {
 import Header from "./Header";
 import MenuOverlay from "./MenuOverlay";
 import Cursor from "./Cursor";
+import ProjectTransition from "./ProjectTransition";
 import type { MenuPanel } from "@/lib/menuPanels";
 
 type UIState = {
@@ -33,6 +34,13 @@ type UIState = {
   /** Hero/intro media buffered — intro animation waits for this. */
   introSequenceReady: boolean;
   setIntroSequenceReady: (v: boolean) => void;
+  /** Final hero typography active before the fullscreen reveal starts. */
+  wordmarkRevealReady: boolean;
+  setWordmarkRevealReady: (v: boolean) => void;
+  /** Slug of project currently in carousel transition. */
+  projectTransitionSlug: string | null;
+  startProjectTransition: (slug: string) => void;
+  finishProjectTransition: () => void;
 };
 
 const UIContext = createContext<UIState | null>(null);
@@ -106,6 +114,16 @@ export default function Providers({ children }: { children: ReactNode }) {
   const [introScrollEnabled, setIntroScrollEnabled] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const [introSequenceReady, setIntroSequenceReady] = useState(false);
+  const [wordmarkRevealReady, setWordmarkRevealReady] = useState(false);
+  const [projectTransitionSlug, setProjectTransitionSlug] = useState<string | null>(null);
+
+  const startProjectTransition = useCallback((slug: string) => {
+    setProjectTransitionSlug(slug);
+  }, []);
+
+  const finishProjectTransition = useCallback(() => {
+    setProjectTransitionSlug(null);
+  }, []);
 
   const openMenuPanel = useCallback((panel: MenuPanel) => {
     setMenuPanel(panel);
@@ -138,6 +156,11 @@ export default function Providers({ children }: { children: ReactNode }) {
       setIntroComplete,
       introSequenceReady,
       setIntroSequenceReady,
+      wordmarkRevealReady,
+      setWordmarkRevealReady,
+      projectTransitionSlug,
+      startProjectTransition,
+      finishProjectTransition,
     }),
     [
       menuOpen,
@@ -150,6 +173,10 @@ export default function Providers({ children }: { children: ReactNode }) {
       introScrollEnabled,
       introComplete,
       introSequenceReady,
+      wordmarkRevealReady,
+      projectTransitionSlug,
+      startProjectTransition,
+      finishProjectTransition,
     ]
   );
 
@@ -173,6 +200,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       </ReactLenis>
       <Header />
       <MenuOverlay />
+      <ProjectTransition />
       <Cursor />
     </UIContext.Provider>
   );

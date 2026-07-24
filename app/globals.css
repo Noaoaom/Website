@@ -79,6 +79,16 @@ h6 {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+.footer-contacts-band {
+  height: 32dvh;
+}
+
+@media (min-width: 768px) {
+  .footer-contacts-band {
+    height: 22dvh;
+  }
+}
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

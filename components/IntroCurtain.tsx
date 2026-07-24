@@ -8,6 +8,7 @@ import {
   type MotionValue,
 } from "motion/react";
 import { useEffect, useRef } from "react";
+import { flushSync } from "react-dom";
 import {
   cropInsetFromVisible,
   easeZoom,
@@ -119,11 +120,11 @@ export default function IntroCurtain({
 }: IntroCurtainProps) {
   const mediaCount = media.length;
   const cropProgresses = useCropValues(mediaCount);
-  const { introSequenceReady } = useUI();
+  const { introSequenceReady, setWordmarkRevealReady } = useUI();
   const introSequenceReadyRef = useRef(introSequenceReady);
   introSequenceReadyRef.current = introSequenceReady;
 
-  const { slotOpen, revealHorizontal, revealVertical, outerHeightVh } =
+  const { slotOpen, revealHorizontal, revealVertical, outerHeightVh, wordmarkRevealReady } =
     reelMotion;
 
   const outerWidthVw = useTransform(
@@ -239,6 +240,11 @@ export default function IntroCurtain({
 
       await Promise.all([slotAnimation, ...cropAnimations]);
       if (cancelled) return;
+
+      wordmarkRevealReady.set(1);
+      flushSync(() => {
+        setWordmarkRevealReady(true);
+      });
 
       await Promise.all([
         animate(revealVertical, 1, {
