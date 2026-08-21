@@ -16,6 +16,7 @@ import Header from "./Header";
 import MenuOverlay from "./MenuOverlay";
 import Cursor from "./Cursor";
 import ProjectTransition from "./ProjectTransition";
+import VideoPreloadGate from "./VideoPreloadGate";
 import type { MenuPanel } from "@/lib/menuPanels";
 import {
   syncIntroReelEndState,
@@ -34,6 +35,8 @@ type UIState = {
   setLoaderDone: (v: boolean) => void;
   preloaderActive: boolean;
   setPreloaderActive: (v: boolean) => void;
+  mediaPreloadProgress: number;
+  setMediaPreloadProgress: (v: number) => void;
   introScrollEnabled: boolean;
   setIntroScrollEnabled: (v: boolean) => void;
   introComplete: boolean;
@@ -203,6 +206,7 @@ export default function Providers({ children }: { children: ReactNode }) {
   const [menuPanel, setMenuPanel] = useState<MenuPanel | null>(null);
   const [loaderDone, setLoaderDone] = useState(false);
   const [preloaderActive, setPreloaderActive] = useState(true);
+  const [mediaPreloadProgress, setMediaPreloadProgress] = useState(0);
   const [introScrollEnabled, setIntroScrollEnabled] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const [introSequenceReady, setIntroSequenceReady] = useState(false);
@@ -278,6 +282,8 @@ export default function Providers({ children }: { children: ReactNode }) {
       setLoaderDone,
       preloaderActive,
       setPreloaderActive,
+      mediaPreloadProgress,
+      setMediaPreloadProgress,
       introScrollEnabled,
       setIntroScrollEnabled,
       introComplete,
@@ -302,6 +308,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       closeMenu,
       loaderDone,
       preloaderActive,
+      mediaPreloadProgress,
       introScrollEnabled,
       introComplete,
       introSequenceReady,
@@ -343,6 +350,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       <Header />
       <MenuOverlay />
       <ProjectTransition />
+      <VideoPreloadGate />
       <Cursor />
     </UIContext.Provider>
   );

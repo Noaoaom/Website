@@ -194,7 +194,13 @@ export default function HeroWordmarks({
   className = "",
 }: HeroWordmarksProps) {
   const reducedMotion = useReducedMotion();
-  const { introComplete, introSequenceReady, wordmarkRevealReady } = useUI();
+  const {
+    introComplete,
+    introSequenceReady,
+    wordmarkRevealReady,
+    mediaPreloadProgress,
+    setLoaderDone,
+  } = useUI();
   const { outerHeightVh, revealVertical, wordmarkRevealReady: wordmarkRevealReadyMv } =
     reelMotion;
   const useFinalTypography =
@@ -212,6 +218,10 @@ export default function HeroWordmarks({
   );
 
   const [visible, setVisible] = useState(Boolean(reducedMotion || introComplete));
+  const [wordmarkIntroDone, setWordmarkIntroDone] = useState(
+    Boolean(reducedMotion || introComplete)
+  );
+  const [measurementsReady, setMeasurementsReady] = useState(false);
 
   const leftX = useMotionValue(0);
   const rightX = useMotionValue(0);
@@ -386,6 +396,8 @@ export default function HeroWordmarks({
         rightX.set(measureRef.current.rightStartX);
         setVisible(true);
       }
+
+      setMeasurementsReady(true);
     };
 
     measure();
@@ -398,9 +410,11 @@ export default function HeroWordmarks({
       leftX.set(0);
       rightX.set(0);
       setVisible(true);
+      setWordmarkIntroDone(true);
+      setLoaderDone(true);
       return;
     }
-    if (!introSequenceReady) return;
+    if (!measurementsReady) return;
 
     const m = measureRef.current;
     if (!m) return;
@@ -423,6 +437,10 @@ export default function HeroWordmarks({
       await new Promise<void>((resolve) => {
         window.setTimeout(resolve, WORDMARK_INTRO.centerHoldMs);
       });
+      if (cancelled) return;
+
+      setWordmarkIntroDone(true);
+      setLoaderDone(true);
     };
 
     run();
@@ -430,7 +448,21 @@ export default function HeroWordmarks({
     return () => {
       cancelled = true;
     };
-  }, [reducedMotion, introSequenceReady, introComplete, leftX, rightX]);
+  }, [
+    reducedMotion,
+    introComplete,
+    measurementsReady,
+    leftX,
+    rightX,
+    setLoaderDone,
+  ]);
+
+  const showLoadProgress =
+    wordmarkIntroDone &&
+    !introSequenceReady &&
+    !introComplete &&
+    !reducedMotion &&
+    mediaPreloadProgress < 100;
 
   const wordmarkStyle = {
     fontSize: HERO_WORDMARK.fontSize,
@@ -495,6 +527,19 @@ export default function HeroWordmarks({
           </span>
         </div>
       </div>
+
+      {showLoadProgress ? (
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, ease: EASE }}
+          className="absolute left-1/2 top-[calc(50%+0.55em)] -translate-x-1/2 font-helvetica text-[11px] uppercase tracking-[0.35em] text-brand-red/55 mix-blend-difference md:text-[13px]"
+          aria-live="polite"
+          aria-label={`Loading videos ${mediaPreloadProgress} percent`}
+        >
+          {mediaPreloadProgress}%
+        </motion.span>
+      ) : null}
 
       <span
         className="absolute inset-x-0 top-0 block text-center"

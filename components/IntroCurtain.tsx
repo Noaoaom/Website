@@ -15,14 +15,12 @@ import {
 } from "@/lib/cropReveal";
 import type { IntroReelMotion } from "./intro/useIntroReelMotion";
 import { SLOT_HEIGHT_VH, SLOT_WIDTH_VW } from "./intro/useIntroReelMotion";
-import { WORDMARK_INTRO_TOTAL_MS } from "./heroWordmarkLayout";
 import { carouselRedMaskClip } from "@/lib/introCarouselClip";
 import { waitUntil } from "@/lib/waitUntil";
 import MediaCover from "./ui/MediaCover";
 import { useUI } from "./Providers";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const RED_HOLD_MS = WORDMARK_INTRO_TOTAL_MS;
 const POST_TEXT_READY_MS = 100;
 const SLOT_OPEN_S = 0.95;
 const PROJECT_BEAT_MS = 50;
@@ -213,9 +211,6 @@ export default function IntroCurtain({
         () => introSequenceReadyRef.current,
         INTRO_MEDIA_MAX_WAIT_MS
       );
-      if (cancelled) return;
-
-      await wait(RED_HOLD_MS);
       if (cancelled) return;
 
       onTextReadyRef.current();

@@ -9,8 +9,6 @@ import HeroContent from "./Hero";
 import HeroWordmarks from "./HeroWordmarks";
 import IntroCurtain, { type IntroMediaItem } from "./IntroCurtain";
 import { syncIntroReelEndState } from "./intro/useIntroReelMotion";
-import MediaPreloader from "./MediaPreloader";
-import IntroSequenceBootstrap from "./IntroSequenceBootstrap";
 import ProjectSection, { HERO_OVERLAP_VH } from "./ProjectSection";
 
 /** Extra scroll while hero stays pinned before projects take over. */
@@ -89,8 +87,6 @@ export default function HomePage() {
 
   return (
     <main className="relative overflow-x-clip bg-black">
-      <MediaPreloader />
-      <IntroSequenceBootstrap />
       <div
         ref={pinRef}
         className="relative z-[1]"
