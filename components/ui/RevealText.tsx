@@ -18,6 +18,8 @@ type RevealTextProps = {
   byWord?: boolean;
   once?: boolean;
   as?: "h1" | "h2" | "h3" | "h4" | "p" | "span" | "div";
+  /** Per-char overflow clip — disable for display/script fonts with tall glyphs. */
+  clipChars?: boolean;
 };
 
 const charVariants: Variants = {
@@ -33,6 +35,7 @@ export default function RevealText({
   byWord = true,
   once = true,
   as: Tag = "span",
+  clipChars = true,
 }: RevealTextProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once, margin: "-10% 0px -10% 0px" });
@@ -43,9 +46,18 @@ export default function RevealText({
     <Tag ref={ref as never} className={className}>
       {words.map((word, wi) => (
         <span key={`${word}-${wi}`} className="inline-block">
-          <span className="inline-flex items-baseline whitespace-nowrap overflow-hidden px-[0.1em] -mx-[0.1em] py-[0.35em] -my-[0.35em] leading-[1.1]">
+          <span
+            className={
+              clipChars
+                ? "inline-flex items-baseline whitespace-nowrap overflow-hidden px-[0.1em] -mx-[0.1em] py-[0.35em] -my-[0.35em] leading-[1.1]"
+                : "inline-flex items-baseline whitespace-nowrap overflow-visible px-[0.1em] -mx-[0.1em] py-[0.45em] -my-[0.45em] leading-[1.15]"
+            }
+          >
             {Array.from(word).map((char, ci) => (
-              <span key={`${wi}-${ci}`} className="inline-block overflow-hidden">
+              <span
+                key={`${wi}-${ci}`}
+                className={clipChars ? "inline-block overflow-hidden" : "inline-block overflow-visible"}
+              >
                 <motion.span
                   className="inline-block will-change-transform"
                   variants={charVariants}

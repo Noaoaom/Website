@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useFinePointer } from "../hooks";
 import { useUI } from "../Providers";
 
@@ -13,11 +13,17 @@ type MediaCoverProps = {
   className?: string;
   playOnView?: boolean;
   fit?: "cover" | "contain";
+  /** Portrait (9:16) — sharp contain foreground + blurred cover fill. */
+  portrait?: boolean;
   /** Start loading before the section enters the viewport. */
   preloadMargin?: string;
   /** Pairs intro/hero videos for seamless playback handoff. */
   handoffId?: string;
 };
+
+function mediaClass(fit: "cover" | "contain") {
+  return fit === "contain" ? "object-contain" : "object-cover";
+}
 
 export default function MediaCover({
   image,
@@ -27,17 +33,21 @@ export default function MediaCover({
   className = "",
   playOnView = true,
   fit = "cover",
+  portrait = false,
   preloadMargin = "1200px 0px",
   handoffId,
 }: MediaCoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const blurVideoRef = useRef<HTMLVideoElement>(null);
   const finePointer = useFinePointer();
   const { setIntroSequenceReady } = useUI();
   const [shouldLoad, setShouldLoad] = useState(priority);
   const [videoReady, setVideoReady] = useState(false);
   const isSvg = image.endsWith(".svg");
-  const objectClass = fit === "contain" ? "object-contain" : "object-cover";
+  const foregroundFit = portrait ? "contain" : fit;
+  const foregroundClass = mediaClass(foregroundFit);
+  const backgroundClass = mediaClass("cover");
 
   useEffect(() => {
     if (priority || shouldLoad) return;
@@ -64,6 +74,7 @@ export default function MediaCover({
       const markReady = () => setVideoReady(true);
       const tryPlay = () => {
         el.play().catch(() => undefined);
+        blurVideoRef.current?.play().catch(() => undefined);
       };
       const signalIntroReady = () => {
         if (handoffId === "hero-reel") {
@@ -101,11 +112,14 @@ export default function MediaCover({
     const observer = new IntersectionObserver(
       ([entry]) => {
         const el = videoRef.current;
+        const blurEl = blurVideoRef.current;
         if (!el) return;
         if (entry.isIntersecting) {
           el.play().catch(() => undefined);
+          blurEl?.play().catch(() => undefined);
         } else {
           el.pause();
+          blurEl?.pause();
         }
       },
       { threshold: 0.2 }
@@ -116,6 +130,75 @@ export default function MediaCover({
   }, [video, playOnView, shouldLoad, priority]);
 
   const showVideo = Boolean(video) && finePointer && videoReady;
+  const showImage = shouldLoad && (!video || !showVideo);
+  const poster = video && portrait ? undefined : image;
+
+  const renderImage = (layerClass: string) =>
+    showImage ? (
+      isSvg ? (
+        <img
+          src={image}
+          alt={alt}
+          decoding="async"
+          className={`absolute inset-0 h-full w-full ${layerClass}`}
+        />
+      ) : (
+        <Image
+          src={image}
+          alt={alt}
+          fill
+          priority={priority}
+          sizes="100vw"
+          className={`absolute inset-0 h-full w-full ${layerClass}`}
+        />
+      )
+    ) : null;
+
+  const renderVideo = (
+    layerClass: string,
+    videoElRef: RefObject<HTMLVideoElement | null>,
+    options?: { blur?: boolean }
+  ) =>
+    video && shouldLoad ? (
+      options?.blur ? (
+        <div
+          className={`absolute inset-0 overflow-hidden transition-opacity duration-300 ${
+            showVideo ? "opacity-100" : "opacity-0"
+          }`}
+          aria-hidden
+        >
+          <div className="absolute inset-0 scale-[1.35] blur-[48px] brightness-[0.5]">
+            <video
+              ref={videoElRef}
+              src={video}
+              poster={poster}
+              muted
+              loop
+              playsInline
+              autoPlay={priority}
+              preload={priority ? "auto" : "metadata"}
+              onCanPlay={() => setVideoReady(true)}
+              className={`absolute inset-0 h-full w-full ${layerClass}`}
+            />
+          </div>
+        </div>
+      ) : (
+        <video
+          ref={videoElRef}
+          src={video}
+          poster={poster}
+          muted
+          loop
+          playsInline
+          autoPlay={priority}
+          preload={priority ? "auto" : "metadata"}
+          onCanPlay={() => setVideoReady(true)}
+          className={`absolute inset-0 h-full w-full ${layerClass} transition-opacity duration-300 ${
+            showVideo ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      )
+    ) : null;
 
   return (
     <div
@@ -123,46 +206,27 @@ export default function MediaCover({
       className={`relative h-full w-full ${className}`}
       {...(handoffId ? { "data-handoff-id": handoffId } : {})}
     >
-      {shouldLoad ? (
-        isSvg ? (
-          // SVG placeholders: skip next/image rasterization (much faster).
-          <img
-            src={image}
-            alt={alt}
-            decoding="async"
-            className={`absolute inset-0 h-full w-full ${objectClass}`}
-          />
-        ) : (
-          <Image
-            src={image}
-            alt={alt}
-            fill
-            priority={priority}
-            sizes="100vw"
-            className={`absolute inset-0 h-full w-full ${objectClass}`}
-          />
-        )
-      ) : null}
+      {portrait ? (
+        <>
+          <div className="absolute inset-0 overflow-hidden bg-black">
+            {video ? renderVideo(backgroundClass, blurVideoRef, { blur: true }) : renderImage(backgroundClass)}
+          </div>
+          <div className="absolute inset-0 z-[1]">
+            {video ? renderVideo(foregroundClass, videoRef) : renderImage(foregroundClass)}
+          </div>
+        </>
+      ) : (
+        <>
+          {renderImage(foregroundClass)}
+          {renderVideo(foregroundClass, videoRef)}
+        </>
+      )}
 
-      {video && shouldLoad ? (
-        <video
-          ref={videoRef}
-          src={video}
-          poster={image}
-          muted
-          loop
-          playsInline
-          autoPlay={priority}
-          preload={priority ? "auto" : "metadata"}
-          onCanPlay={() => setVideoReady(true)}
-          className={`absolute inset-0 h-full w-full ${objectClass} transition-opacity duration-300 ${
-            showVideo ? "opacity-100" : "opacity-0"
-          }`}
-        />
-      ) : null}
-
-      {fit === "cover" ? (
+      {!portrait && fit === "cover" ? (
         <div className="pointer-events-none absolute inset-0 bg-black/20" />
+      ) : null}
+      {portrait ? (
+        <div className="pointer-events-none absolute inset-0 z-[2] bg-black/10" />
       ) : null}
     </div>
   );

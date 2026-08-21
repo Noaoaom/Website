@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useLenis } from "lenis/react";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useRef, type MouseEvent } from "react";
 import { cropInsetXY, easeZoom } from "@/lib/cropReveal";
-import type { Project } from "@/lib/projects";
+import {
+  projectDisplayFontClass,
+  usesDisplayTitleFont,
+} from "@/app/fonts";
+import { getProjectMediaProps, getProjectTitleClassName, type Project } from "@/lib/projects";
 import { useUI } from "./Providers";
 import MediaCover from "./ui/MediaCover";
 import ScrollRevealText, { TEXT_TRANSITION_SPEED } from "./ui/ScrollRevealText";
@@ -35,6 +40,7 @@ export default function ProjectSection({
   overlapPrevious = 0,
 }: ProjectSectionProps) {
   const sectionRef = useRef<HTMLElement>(null);
+  const lenis = useLenis();
   const { startProjectTransition, projectTransitionSlug } = useUI();
   const isRedBg = index % 2 === 1;
 
@@ -114,12 +120,16 @@ export default function ProjectSection({
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     if (projectTransitionSlug) return;
-    startProjectTransition(project.slug);
+    const homeScrollY = lenis?.scroll ?? window.scrollY;
+    startProjectTransition(project.slug, homeScrollY);
   };
+
+  const mediaProps = getProjectMediaProps(project);
 
   return (
     <section
       ref={sectionRef}
+      data-project-slug={project.slug}
       className={`relative h-dvh w-full overflow-hidden ${
         isRedBg ? "bg-brand-red" : "bg-black"
       }`}
@@ -142,7 +152,8 @@ export default function ProjectSection({
               image={project.image}
               video={project.video}
               alt={project.title}
-              fit="cover"
+              fit={mediaProps.fit}
+              portrait={mediaProps.portrait}
               priority={index <= 1}
             />
           </motion.div>
@@ -163,7 +174,9 @@ export default function ProjectSection({
           </div>
 
           <motion.div
-            className="flex max-w-[90%] origin-center flex-col items-center gap-4 text-center md:max-w-[70%]"
+            className={`flex max-w-[90%] origin-center flex-col items-center gap-4 text-center md:max-w-[70%]${
+              usesDisplayTitleFont(project.titleFont) ? " py-[0.35em]" : ""
+            }`}
             style={{ scale: titleScale }}
           >
             <ScrollRevealText
@@ -171,7 +184,12 @@ export default function ProjectSection({
               text={project.title}
               enterProgress={textEnterProgress}
               exitProgress={textExitProgress}
-              className="font-ivar text-[40px] uppercase leading-[0.85] text-brand-red md:text-[72px] lg:text-[100px]"
+              className={`${getProjectTitleClassName(project, "section")}${
+                projectDisplayFontClass(project.titleFont)
+                  ? ` ${projectDisplayFontClass(project.titleFont)}`
+                  : ""
+              }`}
+              clipChars={!usesDisplayTitleFont(project.titleFont)}
               stagger={0.75}
               travelEm={0.4}
               speed={textSpeed}

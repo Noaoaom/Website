@@ -7,14 +7,21 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Header from "./Header";
 import MenuOverlay from "./MenuOverlay";
 import Cursor from "./Cursor";
 import ProjectTransition from "./ProjectTransition";
 import type { MenuPanel } from "@/lib/menuPanels";
+import {
+  syncIntroReelEndState,
+  useIntroReelMotion,
+  type IntroReelMotion,
+} from "./intro/useIntroReelMotion";
 
 type UIState = {
   menuOpen: boolean;
@@ -39,8 +46,12 @@ type UIState = {
   setWordmarkRevealReady: (v: boolean) => void;
   /** Slug of project currently in carousel transition. */
   projectTransitionSlug: string | null;
-  startProjectTransition: (slug: string) => void;
+  startProjectTransition: (slug: string, homeScrollY?: number) => void;
   finishProjectTransition: () => void;
+  homeTransitionSlug: string | null;
+  finishHomeTransition: () => void;
+  returnToHome: () => void;
+  reelMotion: IntroReelMotion;
 };
 
 const UIContext = createContext<UIState | null>(null);
@@ -89,9 +100,8 @@ function LenisIntroLock() {
   useEffect(() => {
     if (!lenis) return;
 
-    window.scrollTo(0, 0);
-
     if (!introScrollEnabled) {
+      window.scrollTo(0, 0);
       lenis.scrollTo(0, { immediate: true, force: true });
       lenis.stop();
       return;
@@ -106,7 +116,89 @@ function LenisIntroLock() {
   return null;
 }
 
+/** Restores homepage scroll after returning from a project. */
+function HomeScrollRestore({
+  pendingHomeProjectSlug,
+  homeReturnScroll,
+  homeTransitionActive,
+  onRestored,
+}: {
+  pendingHomeProjectSlug: string | null;
+  homeReturnScroll: number | null;
+  homeTransitionActive: boolean;
+  onRestored: () => void;
+}) {
+  const pathname = usePathname();
+  const lenis = useLenis();
+
+  useEffect(() => {
+    if (
+      pathname !== "/" ||
+      pendingHomeProjectSlug === null ||
+      homeTransitionActive ||
+      !lenis
+    ) {
+      return;
+    }
+
+    const slug = pendingHomeProjectSlug;
+    const targetScroll = homeReturnScroll;
+    let attempts = 0;
+    let raf = 0;
+    let cancelled = false;
+
+    const restore = () => {
+      lenis.resize();
+
+      if (targetScroll != null) {
+        lenis.scrollTo(targetScroll, { immediate: true, force: true });
+        return Math.abs(lenis.scroll - targetScroll) < 2;
+      }
+
+      const el = document.querySelector(
+        `[data-project-slug="${slug}"]`
+      ) as HTMLElement | null;
+      if (!el) return false;
+
+      lenis.scrollTo(el, { immediate: true, force: true, offset: 0 });
+      return true;
+    };
+
+    const tryRestore = () => {
+      if (cancelled) return;
+
+      const done = restore();
+      attempts += 1;
+
+      if (done || attempts >= 30) {
+        onRestored();
+        return;
+      }
+
+      raf = requestAnimationFrame(tryRestore);
+    };
+
+    tryRestore();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [
+    pathname,
+    pendingHomeProjectSlug,
+    homeReturnScroll,
+    homeTransitionActive,
+    lenis,
+    onRestored,
+  ]);
+
+  return null;
+}
+
 export default function Providers({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const reelMotion = useIntroReelMotion();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPanel, setMenuPanel] = useState<MenuPanel | null>(null);
   const [loaderDone, setLoaderDone] = useState(false);
@@ -116,14 +208,50 @@ export default function Providers({ children }: { children: ReactNode }) {
   const [introSequenceReady, setIntroSequenceReady] = useState(false);
   const [wordmarkRevealReady, setWordmarkRevealReady] = useState(false);
   const [projectTransitionSlug, setProjectTransitionSlug] = useState<string | null>(null);
+  const [homeTransitionSlug, setHomeTransitionSlug] = useState<string | null>(null);
+  const [pendingHomeProjectSlug, setPendingHomeProjectSlug] = useState<string | null>(null);
+  const [pendingHomeScroll, setPendingHomeScroll] = useState<number | null>(null);
+  const homeReturnProjectSlugRef = useRef<string | null>(null);
+  const homeReturnScrollRef = useRef<number | null>(null);
 
-  const startProjectTransition = useCallback((slug: string) => {
+  const startProjectTransition = useCallback((slug: string, homeScrollY?: number) => {
+    if (typeof window !== "undefined" && window.location.pathname === "/") {
+      homeReturnProjectSlugRef.current = slug;
+      homeReturnScrollRef.current = homeScrollY ?? null;
+    }
     setProjectTransitionSlug(slug);
   }, []);
 
   const finishProjectTransition = useCallback(() => {
     setProjectTransitionSlug(null);
   }, []);
+
+  const finishHomeTransition = useCallback(() => {
+    setHomeTransitionSlug(null);
+  }, []);
+
+  const returnToHome = useCallback(() => {
+    const slug = homeReturnProjectSlugRef.current;
+    setPendingHomeProjectSlug(slug);
+    setPendingHomeScroll(homeReturnScrollRef.current);
+
+    if (!slug) {
+      router.push("/", { scroll: false });
+      return;
+    }
+
+    setHomeTransitionSlug(slug);
+  }, [router]);
+
+  const clearPendingHomeProject = useCallback(() => {
+    setPendingHomeProjectSlug(null);
+    setPendingHomeScroll(null);
+  }, []);
+
+  useEffect(() => {
+    if (!introComplete) return;
+    syncIntroReelEndState(reelMotion);
+  }, [introComplete, reelMotion]);
 
   const openMenuPanel = useCallback((panel: MenuPanel) => {
     setMenuPanel(panel);
@@ -161,6 +289,10 @@ export default function Providers({ children }: { children: ReactNode }) {
       projectTransitionSlug,
       startProjectTransition,
       finishProjectTransition,
+      homeTransitionSlug,
+      finishHomeTransition,
+      returnToHome,
+      reelMotion,
     }),
     [
       menuOpen,
@@ -177,6 +309,10 @@ export default function Providers({ children }: { children: ReactNode }) {
       projectTransitionSlug,
       startProjectTransition,
       finishProjectTransition,
+      homeTransitionSlug,
+      finishHomeTransition,
+      returnToHome,
+      reelMotion,
     ]
   );
 
@@ -196,6 +332,12 @@ export default function Providers({ children }: { children: ReactNode }) {
       >
         <LenisScrollBridge />
         <LenisIntroLock />
+        <HomeScrollRestore
+          pendingHomeProjectSlug={pendingHomeProjectSlug}
+          homeReturnScroll={pendingHomeScroll}
+          homeTransitionActive={homeTransitionSlug !== null}
+          onRestored={clearPendingHomeProject}
+        />
         {children}
       </ReactLenis>
       <Header />

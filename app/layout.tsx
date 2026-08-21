@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { siteFont } from "./fonts";
+import { astonScriptFont, drownerFont, siteFont } from "./fonts";
 import { site } from "@/lib/site";
 import { heroMedia } from "@/lib/projects";
 import Providers from "@/components/Providers";
@@ -21,7 +21,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${siteFont.variable} lenis`}>
+    <html lang="en" className={`${siteFont.variable} ${astonScriptFont.variable} ${drownerFont.variable} lenis`}>
       <head>
         {heroMedia.video ? (
           <link rel="preload" as="video" href={heroMedia.video} />

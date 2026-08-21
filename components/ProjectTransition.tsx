@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLenis } from "lenis/react";
 import { carouselRedMaskClip } from "@/lib/introCarouselClip";
 import { cropInsetFromVisible, easeZoom } from "@/lib/cropReveal";
-import { projects, type Project } from "@/lib/projects";
+import { projects, getProjectMediaProps, type Project } from "@/lib/projects";
 import { PROJECT_TRANSITION } from "@/lib/projectTransition";
 import {
   SLOT_HEIGHT_VH,
@@ -54,6 +54,8 @@ function CarouselLayer({
     isTarget ? 1 : vert < 0.15 ? 1 : 0
   );
 
+  const mediaProps = getProjectMediaProps(project);
+
   return (
     <motion.div
       className="absolute inset-0 will-change-[clip-path,opacity]"
@@ -64,7 +66,8 @@ function CarouselLayer({
           image={project.image}
           video={project.video}
           alt={project.title}
-          fit="cover"
+          fit={mediaProps.fit}
+          portrait={mediaProps.portrait}
           priority
           playOnView
         />
@@ -95,23 +98,46 @@ export default function ProjectTransition() {
   const router = useRouter();
   const pathname = usePathname();
   const lenis = useLenis();
-  const { projectTransitionSlug, finishProjectTransition } = useUI();
+  const {
+    projectTransitionSlug,
+    homeTransitionSlug,
+    finishProjectTransition,
+    finishHomeTransition,
+  } = useUI();
+
+  const isForward = Boolean(projectTransitionSlug);
+  const isReverse = Boolean(homeTransitionSlug);
+  const activeSlug = projectTransitionSlug ?? homeTransitionSlug;
+
   const [visible, setVisible] = useState(false);
   const [fadingOut, setFadingOut] = useState(false);
+  const [direction, setDirection] = useState<"in" | "out">("in");
 
-  const targetIndex = projects.findIndex((p) => p.slug === projectTransitionSlug);
+  const forwardTargetIndex = projects.findIndex(
+    (p) => p.slug === projectTransitionSlug
+  );
   const currentIndex = projects.findIndex(
     (p) => pathname === `/project/${p.slug}`
   );
-  const startIndex = currentIndex >= 0 ? currentIndex : 0;
-  const carouselProjects =
-    targetIndex >= 0 ? getCarouselProjects(startIndex, targetIndex) : [];
-  const mediaCount = carouselProjects.length;
+  const forwardStartIndex = currentIndex >= 0 ? currentIndex : 0;
+  const reverseTargetIndex = projects.findIndex(
+    (p) => p.slug === homeTransitionSlug
+  );
+
+  const carouselProjects = isForward
+    ? forwardTargetIndex >= 0
+      ? getCarouselProjects(forwardStartIndex, forwardTargetIndex)
+      : []
+    : reverseTargetIndex >= 0
+      ? getCarouselProjects(0, reverseTargetIndex)
+      : [];
+
+  const mediaCount = Math.max(carouselProjects.length, 1);
 
   const slotOpen = useRef(motionValue(0)).current;
   const revealHorizontal = useRef(motionValue(0)).current;
   const revealVertical = useRef(motionValue(0)).current;
-  const cropProgresses = useCropValues(Math.max(mediaCount, 1));
+  const cropProgresses = useCropValues(mediaCount);
   const beatFlash = useRef(motionValue(0)).current;
 
   const outerHeightVh = useTransform(
@@ -176,11 +202,7 @@ export default function ProjectTransition() {
   );
 
   useEffect(() => {
-    if (!projectTransitionSlug || targetIndex < 0) {
-      setVisible(false);
-      setFadingOut(false);
-      return;
-    }
+    if (!projectTransitionSlug || forwardTargetIndex < 0) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reducedMotion) {
@@ -189,6 +211,7 @@ export default function ProjectTransition() {
       return;
     }
 
+    setDirection("in");
     setVisible(true);
     setFadingOut(false);
     document.body.style.overflow = "hidden";
@@ -196,6 +219,7 @@ export default function ProjectTransition() {
 
     let cancelled = false;
     let navigated = false;
+    const count = carouselProjects.length;
 
     const wait = (ms: number) =>
       new Promise<void>((resolve) => {
@@ -222,7 +246,6 @@ export default function ProjectTransition() {
     const run = async () => {
       reset();
       beatFlash.set(1);
-
       cropProgresses[0]?.set(1);
 
       const slotAnimation = animate(slotOpen, 1, {
@@ -232,7 +255,7 @@ export default function ProjectTransition() {
 
       const cropAnimations: ReturnType<typeof animate>[] = [];
 
-      for (let i = 1; i < mediaCount; i++) {
+      for (let i = 1; i < count; i++) {
         await wait(PROJECT_TRANSITION.projectBeatMs);
         if (cancelled) return;
         beatFlash.set(i + 1);
@@ -251,12 +274,6 @@ export default function ProjectTransition() {
         duration: PROJECT_TRANSITION.revealS * 0.88,
         ease: PROJECT_TRANSITION.ease,
         delay: PROJECT_TRANSITION.revealHorizontalDelayS,
-      });
-
-      revealVerticalAnim.then(() => {
-        if (cancelled || navigated) return;
-        navigated = true;
-        router.push(`/project/${projectTransitionSlug}`);
       });
 
       const navigateTimer = window.setTimeout(() => {
@@ -295,8 +312,8 @@ export default function ProjectTransition() {
     };
   }, [
     projectTransitionSlug,
-    targetIndex,
-    mediaCount,
+    forwardTargetIndex,
+    carouselProjects.length,
     router,
     finishProjectTransition,
     slotOpen,
@@ -307,7 +324,132 @@ export default function ProjectTransition() {
     lenis,
   ]);
 
-  if (!visible || !projectTransitionSlug || targetIndex < 0) return null;
+  useEffect(() => {
+    if (!homeTransitionSlug || reverseTargetIndex < 0) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
+      router.push("/", { scroll: false });
+      finishHomeTransition();
+      return;
+    }
+
+    setDirection("out");
+    setVisible(true);
+    setFadingOut(false);
+    document.body.style.overflow = "hidden";
+    lenis?.stop();
+
+    let cancelled = false;
+    let navigated = false;
+    const count = carouselProjects.length;
+
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        window.setTimeout(() => resolve(), ms);
+      });
+
+    const setEndState = () => {
+      slotOpen.set(1);
+      revealHorizontal.set(1);
+      revealVertical.set(1);
+      beatFlash.set(Math.max(count, 1));
+      cropProgresses.forEach((crop) => crop.set(1));
+    };
+
+    const run = async () => {
+      setEndState();
+
+      const revealHorizontalAnim = animate(revealHorizontal, 0, {
+        duration: PROJECT_TRANSITION.revealS * 0.88,
+        ease: PROJECT_TRANSITION.ease,
+      });
+
+      const revealVerticalAnim = animate(revealVertical, 0, {
+        duration: PROJECT_TRANSITION.revealS,
+        ease: PROJECT_TRANSITION.ease,
+        delay: PROJECT_TRANSITION.revealHorizontalDelayS,
+      });
+
+      const navigateTimer = window.setTimeout(() => {
+        if (cancelled || navigated) return;
+        navigated = true;
+        router.push("/", { scroll: false });
+      }, PROJECT_TRANSITION.revealS * PROJECT_TRANSITION.navigateAtReveal * 1000);
+
+      await Promise.all([revealHorizontalAnim, revealVerticalAnim]);
+      if (cancelled) return;
+
+      window.clearTimeout(navigateTimer);
+      if (!navigated) {
+        navigated = true;
+        router.push("/", { scroll: false });
+      }
+
+      for (let i = count - 1; i >= 1; i--) {
+        await wait(PROJECT_TRANSITION.projectBeatMs);
+        if (cancelled) return;
+        beatFlash.set(i);
+        await animate(cropProgresses[i]!, 0, {
+          duration: PROJECT_TRANSITION.cropInS,
+          ease: PROJECT_TRANSITION.ease,
+        });
+      }
+
+      await animate(slotOpen, 0, {
+        duration: PROJECT_TRANSITION.slotOpenS,
+        ease: PROJECT_TRANSITION.ease,
+      });
+      if (cancelled) return;
+
+      beatFlash.set(0);
+      await animate(cropProgresses[0]!, 0, {
+        duration: PROJECT_TRANSITION.cropInS * 0.85,
+        ease: PROJECT_TRANSITION.ease,
+      });
+      if (cancelled) return;
+
+      setFadingOut(true);
+      await wait(PROJECT_TRANSITION.overlayFadeMs);
+      if (cancelled) return;
+
+      finishHomeTransition();
+      setVisible(false);
+      setFadingOut(false);
+      document.body.style.overflow = "";
+      lenis?.start();
+      requestAnimationFrame(() => lenis?.resize());
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+      document.body.style.overflow = "";
+      lenis?.start();
+    };
+  }, [
+    homeTransitionSlug,
+    reverseTargetIndex,
+    carouselProjects.length,
+    router,
+    finishHomeTransition,
+    slotOpen,
+    revealHorizontal,
+    revealVertical,
+    beatFlash,
+    cropProgresses,
+    lenis,
+  ]);
+
+  useEffect(() => {
+    if (!projectTransitionSlug && !homeTransitionSlug) {
+      setVisible(false);
+      setFadingOut(false);
+    }
+  }, [projectTransitionSlug, homeTransitionSlug]);
+
+  if (!visible || !activeSlug || carouselProjects.length === 0) return null;
 
   return (
     <motion.div
@@ -316,6 +458,7 @@ export default function ProjectTransition() {
       animate={{ opacity: fadingOut ? 0 : 1 }}
       transition={{ duration: PROJECT_TRANSITION.overlayFadeMs / 1000, ease: "easeOut" }}
       aria-hidden={fadingOut}
+      data-transition-direction={direction}
     >
       <motion.div
         className="absolute inset-0 bg-black"
@@ -355,7 +498,7 @@ export default function ProjectTransition() {
                 index={index}
                 cropProgress={cropProgresses[index]!}
                 revealVertical={revealVertical}
-                isTarget={index === mediaCount - 1}
+                isTarget={index === carouselProjects.length - 1}
               />
             ))}
           </motion.div>

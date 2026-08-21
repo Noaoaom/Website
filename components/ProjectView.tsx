@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useRef, useState, type MouseEvent } from "react";
-import type { Project } from "@/lib/projects";
+import {
+  projectDisplayFontClass,
+  usesDisplayTitleFont,
+} from "@/app/fonts";
+import { getProjectMediaProps, getProjectTitleClassName, type Project } from "@/lib/projects";
 import Footer from "./Footer";
-import HoverLink, { HoverButton } from "./ui/HoverLink";
+import { HoverButton } from "./ui/HoverLink";
 import MediaCover from "./ui/MediaCover";
 import RevealText from "./ui/RevealText";
 import { useUI } from "./Providers";
@@ -17,7 +21,7 @@ type ProjectViewProps = {
 
 export default function ProjectView({ project, nextProject }: ProjectViewProps) {
   const [infoOpen, setInfoOpen] = useState(false);
-  const { startProjectTransition, projectTransitionSlug } = useUI();
+  const { startProjectTransition, projectTransitionSlug, returnToHome } = useUI();
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -33,6 +37,8 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
     startProjectTransition(nextProject.slug);
   };
 
+  const mediaProps = getProjectMediaProps(project);
+
   return (
     <main className="relative min-h-dvh overflow-x-clip bg-black">
       <div ref={heroRef} className="relative sticky top-0 z-10 h-dvh w-full overflow-hidden">
@@ -45,7 +51,8 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
             video={project.video}
             alt={project.title}
             priority
-            fit="cover"
+            fit={mediaProps.fit}
+            portrait={mediaProps.portrait}
           />
         </motion.div>
 
@@ -64,14 +71,30 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
               <RevealText
                 as="h1"
                 text={project.title}
-                className="font-ivar text-[48px] uppercase leading-[0.85] text-brand-red md:text-[80px] lg:text-[110px]"
+                className={`${getProjectTitleClassName(project, "detail")}${
+                  projectDisplayFontClass(project.titleFont)
+                    ? ` ${projectDisplayFontClass(project.titleFont)}`
+                    : ""
+                }`}
+                clipChars={!usesDisplayTitleFont(project.titleFont)}
               />
-              <RevealText
-                as="h2"
-                text={project.subtitle}
-                className="mt-6 font-helvetica text-[15px] uppercase leading-[1.1] text-brand-red md:text-[21px]"
-                delay={0.1}
-              />
+              {project.subtitleHref ? (
+                <a
+                  href={project.subtitleHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pointer-events-auto mt-6 font-helvetica text-[15px] uppercase leading-[1.1] text-brand-red transition-opacity hover:opacity-70 md:text-[21px]"
+                >
+                  {project.subtitle}
+                </a>
+              ) : (
+                <RevealText
+                  as="h2"
+                  text={project.subtitle}
+                  className="mt-6 font-helvetica text-[15px] uppercase leading-[1.1] text-brand-red md:text-[21px]"
+                  delay={0.1}
+                />
+              )}
             </div>
 
             <div className="mx-auto mt-10 grid w-full max-w-3xl grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
@@ -89,8 +112,18 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
           </div>
         </div>
 
-        <div className="pointer-events-none absolute bottom-[10px] left-0 right-0 z-[210] flex items-center justify-center px-4 md:bottom-[20px] md:justify-between md:px-12">
-          <div className="pointer-events-auto overflow-hidden">
+        <div className="pointer-events-none absolute bottom-[10px] left-0 right-0 z-[210] grid grid-cols-[1fr_auto_1fr] items-center px-4 md:bottom-[20px] md:px-12">
+          <div className="pointer-events-auto justify-self-start overflow-hidden">
+            <HoverButton
+              className="font-helvetica text-[15px] uppercase md:text-[21px]"
+              underline={false}
+              onClick={returnToHome}
+            >
+              Back
+            </HoverButton>
+          </div>
+
+          <div className="pointer-events-auto justify-self-center overflow-hidden">
             <HoverButton
               className="font-ivar text-[21px] uppercase leading-none text-brand-red md:text-[30px]"
               onClick={() => setInfoOpen((open) => !open)}
@@ -101,7 +134,7 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
 
           <Link
             href={`/project/${nextProject.slug}`}
-            className="pointer-events-auto hidden font-helvetica text-[15px] uppercase text-brand-red transition-opacity hover:opacity-70 md:inline-block md:text-[21px]"
+            className="pointer-events-auto hidden justify-self-end font-helvetica text-[15px] uppercase text-brand-red transition-opacity hover:opacity-70 md:inline-block md:text-[21px]"
             onClick={handleNextClick}
           >
             Next — {nextProject.title}

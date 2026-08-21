@@ -211,7 +211,7 @@ export default function HeroWordmarks({
     typeof window !== "undefined" ? window.innerHeight : 800
   );
 
-  const [visible, setVisible] = useState(Boolean(reducedMotion));
+  const [visible, setVisible] = useState(Boolean(reducedMotion || introComplete));
 
   const leftX = useMotionValue(0);
   const rightX = useMotionValue(0);
@@ -381,7 +381,7 @@ export default function HeroWordmarks({
         revealScaleX,
       };
 
-      if (!visible) {
+      if (!visible && !introComplete) {
         leftX.set(measureRef.current.leftStartX);
         rightX.set(measureRef.current.rightStartX);
         setVisible(true);
@@ -394,7 +394,12 @@ export default function HeroWordmarks({
   }, [reducedMotion, leftX, rightX, visible, introComplete, wordmarkRevealReady]);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (reducedMotion || introComplete) {
+      leftX.set(0);
+      rightX.set(0);
+      setVisible(true);
+      return;
+    }
     if (!introSequenceReady) return;
 
     const m = measureRef.current;
@@ -425,7 +430,7 @@ export default function HeroWordmarks({
     return () => {
       cancelled = true;
     };
-  }, [reducedMotion, introSequenceReady, leftX, rightX]);
+  }, [reducedMotion, introSequenceReady, introComplete, leftX, rightX]);
 
   const wordmarkStyle = {
     fontSize: HERO_WORDMARK.fontSize,

@@ -9,6 +9,10 @@ export type Project = {
   title: string;
   /** Short tagline shown under the headline. */
   subtitle: string;
+  /** Optional link for the subtitle (e.g. Instagram credit). */
+  subtitleHref?: string;
+  /** Display title in a project-specific face instead of the site sans. */
+  titleFont?: "aston-script" | "drowner";
   /** Client / brand name shown in the top curtain. */
   client: string;
   /** Two digit index shown in the side curtain. */
@@ -17,6 +21,8 @@ export type Project = {
   image: string;
   /** Optional looping preview video (mp4/webm). Leave undefined to use the image only. */
   video?: string;
+  /** Vertical (9:16) media — shown full-frame with blurred side fill. */
+  mediaAspect?: "portrait";
   /** Section background: curtains + frame color alternate between black and red. */
   theme: "black" | "red";
   credits: Credit[];
@@ -25,11 +31,14 @@ export type Project = {
 export const projects: Project[] = [
   {
     slug: "project-one",
-    title: "Project One",
-    subtitle: "A short film tagline",
+    title: "Fine Dining",
+    subtitle: "with @ZoranPingel",
+    subtitleHref: "https://www.instagram.com/zoranpingel/",
+    titleFont: "aston-script",
     client: "Client One",
     number: "01",
     image: "/placeholders/project-1.svg",
+    video: "/Videos/Dining.mov",
     theme: "black",
     credits: [
       { role: "Director", name: "Name Surname" },
@@ -40,11 +49,14 @@ export const projects: Project[] = [
   },
   {
     slug: "project-two",
-    title: "Project Two",
-    subtitle: "Another project tagline",
-    client: "Client Two",
+    title: "IDC",
+    subtitle: "with @youngboypiet",
+    subtitleHref: "https://www.instagram.com/youngboypiet/",
+    titleFont: "drowner",
+    client: "YBP",
     number: "02",
     image: "/placeholders/project-2.svg",
+    video: "/Videos/YBP.mov",
     theme: "red",
     credits: [
       { role: "Director", name: "Name Surname" },
@@ -59,6 +71,8 @@ export const projects: Project[] = [
     client: "Client Three",
     number: "03",
     image: "/placeholders/project-3.svg",
+    video: "/Videos/Artclub.mov",
+    mediaAspect: "portrait",
     theme: "black",
     credits: [
       { role: "Director", name: "Name Surname" },
@@ -111,4 +125,34 @@ export function getProject(slug: string) {
 export function getNextProject(slug: string) {
   const i = projects.findIndex((p) => p.slug === slug);
   return projects[(i + 1) % projects.length];
+}
+
+export function getProjectMediaProps(
+  project: Pick<Project, "mediaAspect">
+): { fit: "cover" | "contain"; portrait: boolean } {
+  if (project.mediaAspect === "portrait") {
+    return { fit: "contain", portrait: true };
+  }
+  return { fit: "cover", portrait: false };
+}
+
+export function getProjectTitleClassName(
+  project: Pick<Project, "titleFont">,
+  variant: "section" | "detail"
+) {
+  if (project.titleFont === "aston-script") {
+    return variant === "section"
+      ? "font-aston text-[56px] normal-case leading-[1.12] text-brand-red md:text-[96px] lg:text-[112px]"
+      : "font-aston text-[64px] normal-case leading-[1.12] text-brand-red md:text-[104px] lg:text-[128px]";
+  }
+
+  if (project.titleFont === "drowner") {
+    return variant === "section"
+      ? "font-drowner text-[48px] uppercase leading-[1.05] text-brand-red md:text-[84px] lg:text-[108px]"
+      : "font-drowner text-[56px] uppercase leading-[1.05] text-brand-red md:text-[96px] lg:text-[120px]";
+  }
+
+  return variant === "section"
+    ? "font-ivar text-[40px] uppercase leading-[0.85] text-brand-red md:text-[72px] lg:text-[100px]"
+    : "font-ivar text-[48px] uppercase leading-[0.85] text-brand-red md:text-[80px] lg:text-[110px]";
 }

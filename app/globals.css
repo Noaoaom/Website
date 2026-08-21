@@ -32,6 +32,32 @@ h6 {
   font-family: var(--font-sans);
 }
 
+h1.font-aston,
+h2.font-aston,
+h3.font-aston,
+h4.font-aston,
+h5.font-aston,
+h6.font-aston,
+.font-aston,
+.font-aston * {
+  font-family: var(--font-aston-script), cursive;
+  font-weight: 400;
+  overflow: visible;
+}
+
+h1.font-drowner,
+h2.font-drowner,
+h3.font-drowner,
+h4.font-drowner,
+h5.font-drowner,
+h6.font-drowner,
+.font-drowner,
+.font-drowner * {
+  font-family: var(--font-drowner), Impact, "Arial Black", sans-serif;
+  font-weight: 400;
+  overflow: visible;
+}
+
 .font-ivar {
   font-family: var(--font-sans);
 }

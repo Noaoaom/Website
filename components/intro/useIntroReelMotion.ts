@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useMotionValue, useTransform } from "motion/react";
 import { easeZoom } from "@/lib/cropReveal";
 
@@ -32,14 +33,32 @@ export function useIntroReelMotion() {
     }
   );
 
-  return {
-    slotOpen,
-    revealHorizontal,
-    revealVertical,
-    wordmarkRevealReady,
-    outerHeightVh,
-    outerWidthVw,
-  };
+  return useMemo(
+    () => ({
+      slotOpen,
+      revealHorizontal,
+      revealVertical,
+      wordmarkRevealReady,
+      outerHeightVh,
+      outerWidthVw,
+    }),
+    [
+      slotOpen,
+      revealHorizontal,
+      revealVertical,
+      wordmarkRevealReady,
+      outerHeightVh,
+      outerWidthVw,
+    ]
+  );
 }
 
 export type IntroReelMotion = ReturnType<typeof useIntroReelMotion>;
+
+/** End state after intro — keeps hero wordmarks aligned when HomePage remounts. */
+export function syncIntroReelEndState(motion: IntroReelMotion) {
+  motion.wordmarkRevealReady.set(1);
+  motion.slotOpen.set(1);
+  motion.revealHorizontal.set(1);
+  motion.revealVertical.set(1);
+}

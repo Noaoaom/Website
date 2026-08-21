@@ -19,6 +19,8 @@ type ScrollRevealTextProps = {
   stagger?: number;
   travelEm?: number;
   speed?: number;
+  /** Per-char overflow clip — disable for display/script fonts with tall glyphs. */
+  clipChars?: boolean;
 };
 
 function easeFade(t: number): number {
@@ -39,6 +41,7 @@ function ScrollChar({
   stagger,
   travelEm,
   speed,
+  clipChars,
 }: {
   char: string;
   index: number;
@@ -48,6 +51,7 @@ function ScrollChar({
   stagger: number;
   travelEm: number;
   speed: number;
+  clipChars: boolean;
 }) {
   /** Per-char reveal length — ensures last letter finishes when enter = 1. */
   const enterSpan = 0.38 * speed;
@@ -88,7 +92,13 @@ function ScrollChar({
   }
 
   return (
-    <span className="inline-block overflow-hidden align-bottom leading-none">
+    <span
+      className={
+        clipChars
+          ? "inline-block overflow-hidden align-bottom leading-none"
+          : "inline-block overflow-visible align-baseline py-[0.14em]"
+      }
+    >
       <motion.span
         className="inline-block will-change-[transform,opacity]"
         style={{ opacity, y }}
@@ -108,16 +118,23 @@ export default function ScrollRevealText({
   stagger = 0.72,
   travelEm = 0.38,
   speed = TEXT_TRANSITION_SPEED,
+  clipChars = true,
 }: ScrollRevealTextProps) {
   const words = text.split(" ").filter(Boolean);
   let charIndex = 0;
   const totalChars = text.replace(/\s/g, "").length;
 
   return (
-    <Tag className={`leading-none ${className}`}>
+    <Tag className={clipChars ? `leading-none ${className}` : className}>
       {words.map((word, wi) => (
         <span key={`${word}-${wi}`} className="inline-block">
-          <span className="inline-flex items-end whitespace-nowrap">
+          <span
+            className={
+              clipChars
+                ? "inline-flex items-end whitespace-nowrap"
+                : "inline-flex items-baseline whitespace-nowrap"
+            }
+          >
             {Array.from(word).map((char) => {
               const index = charIndex++;
               return (
@@ -131,6 +148,7 @@ export default function ScrollRevealText({
                   stagger={stagger}
                   travelEm={travelEm}
                   speed={speed}
+                  clipChars={clipChars}
                 />
               );
             })}

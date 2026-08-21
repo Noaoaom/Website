@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useTransform, type MotionValue } from "motion/react";
+import { motion, type MotionValue } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { site } from "@/lib/site";
 
@@ -16,20 +16,21 @@ type FooterWordmarkProps = {
 };
 
 const REF_FONT_PX = 100;
-const footerLabel = `${site.wordmark.left}\u00A0${site.wordmark.right}`;
+const wordmarkClass =
+  "hero-wordmark-text hero-wordmark-top hero-title-stroke font-ivar uppercase text-black";
 
 export default function FooterWordmark({
   revealScale,
   onMeasure,
 }: FooterWordmarkProps) {
-  const ref = useRef<HTMLSpanElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
   const onMeasureRef = useRef(onMeasure);
   onMeasureRef.current = onMeasure;
   const [fitFontSizePx, setFitFontSizePx] = useState(REF_FONT_PX);
 
   useLayoutEffect(() => {
     const fit = () => {
-      const el = ref.current;
+      const el = measureRef.current;
       if (!el) return;
 
       const targetWidth = window.innerWidth;
@@ -53,15 +54,27 @@ export default function FooterWordmark({
     return () => window.removeEventListener("resize", fit);
   }, []);
 
-  const fontSize = useTransform(revealScale, (scale) => `${fitFontSizePx * scale}px`);
-
   return (
-    <motion.span
-      ref={ref}
-      className="hero-wordmark-text inline-block origin-top whitespace-nowrap text-center font-ivar uppercase leading-none text-black"
-      style={{ fontSize }}
-    >
-      {footerLabel}
-    </motion.span>
+    <>
+      <span
+        ref={measureRef}
+        aria-hidden
+        className={`${wordmarkClass} pointer-events-none invisible absolute left-0 top-0 inline-block whitespace-nowrap text-center`}
+        style={{ fontSize: fitFontSizePx, lineHeight: 0.9 }}
+      >
+        {site.wordmark.left}
+      </span>
+
+      <motion.span
+        className={`${wordmarkClass} inline-block origin-top text-center will-change-transform`}
+        style={{
+          fontSize: fitFontSizePx,
+          lineHeight: 0.9,
+          scale: revealScale,
+        }}
+      >
+        {site.wordmark.left}
+      </motion.span>
+    </>
   );
 }

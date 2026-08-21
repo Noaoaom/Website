@@ -8,7 +8,7 @@ import Footer from "./Footer";
 import HeroContent from "./Hero";
 import HeroWordmarks from "./HeroWordmarks";
 import IntroCurtain, { type IntroMediaItem } from "./IntroCurtain";
-import { useIntroReelMotion } from "./intro/useIntroReelMotion";
+import { syncIntroReelEndState } from "./intro/useIntroReelMotion";
 import MediaPreloader from "./MediaPreloader";
 import IntroSequenceBootstrap from "./IntroSequenceBootstrap";
 import ProjectSection, { HERO_OVERLAP_VH } from "./ProjectSection";
@@ -38,10 +38,11 @@ export default function HomePage() {
     setIntroScrollEnabled,
     setIntroComplete,
     setPreloaderActive,
+    introComplete,
+    reelMotion,
   } = useUI();
   const pinRef = useRef<HTMLDivElement>(null);
-  const [showIntro, setShowIntro] = useState(true);
-  const reelMotion = useIntroReelMotion();
+  const [showIntro, setShowIntro] = useState(!introComplete);
   const reelMotionRef = useRef(reelMotion);
   reelMotionRef.current = reelMotion;
 
@@ -63,10 +64,7 @@ export default function HomePage() {
     setPreloaderActive(false);
 
     const rm = reelMotionRef.current;
-    rm.wordmarkRevealReady.set(1);
-    rm.slotOpen.set(1);
-    rm.revealHorizontal.set(1);
-    rm.revealVertical.set(1);
+    syncIntroReelEndState(rm);
 
     requestAnimationFrame(() => {
       const introVideo = document.querySelector(
