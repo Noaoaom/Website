@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { endVideoHandoff, getVideoHandoffTime } from "@/lib/videoHandoff";
 import { useFinePointer } from "../hooks";
-import { useUI } from "../Providers";
 
 type MediaCoverProps = {
   image: string;
@@ -19,6 +19,11 @@ type MediaCoverProps = {
   preloadMargin?: string;
   /** Pairs intro/hero videos for seamless playback handoff. */
   handoffId?: string;
+  /**
+   * Pick up a running click-in handoff instead of starting at 0:
+   * "continue" while the handoff is still in flight, "finish" to end it.
+   */
+  videoHandoff?: "continue" | "finish";
 };
 
 function mediaClass(fit: "cover" | "contain") {
@@ -36,12 +41,12 @@ export default function MediaCover({
   portrait = false,
   preloadMargin = "1200px 0px",
   handoffId,
+  videoHandoff,
 }: MediaCoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const blurVideoRef = useRef<HTMLVideoElement>(null);
   const finePointer = useFinePointer();
-  const { setIntroSequenceReady } = useUI();
   const [shouldLoad, setShouldLoad] = useState(priority);
   const [videoReady, setVideoReady] = useState(false);
   const isSvg = image.endsWith(".svg");
@@ -76,33 +81,46 @@ export default function MediaCover({
         el.play().catch(() => undefined);
         blurVideoRef.current?.play().catch(() => undefined);
       };
-      const signalIntroReady = () => {
-        if (handoffId === "hero-reel") {
-          setIntroSequenceReady(true);
-        }
-      };
 
       el.addEventListener("loadeddata", markReady);
       el.addEventListener("canplay", markReady);
       el.addEventListener("canplay", tryPlay);
-      el.addEventListener("canplaythrough", signalIntroReady, { once: true });
 
       if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         markReady();
         tryPlay();
-      }
-      if (el.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
-        signalIntroReady();
       }
 
       return () => {
         el.removeEventListener("loadeddata", markReady);
         el.removeEventListener("canplay", markReady);
         el.removeEventListener("canplay", tryPlay);
-        el.removeEventListener("canplaythrough", signalIntroReady);
       };
     }
-  }, [video, shouldLoad, priority, handoffId, setIntroSequenceReady]);
+  }, [video, shouldLoad, priority]);
+
+  useEffect(() => {
+    if (!video || !shouldLoad || !videoHandoff) return;
+    const el = videoRef.current;
+    if (!el) return;
+
+    const seek = () => {
+      const time = getVideoHandoffTime(video);
+      if (time !== null && Number.isFinite(el.duration) && el.duration > 0) {
+        const target = time % el.duration;
+        el.currentTime = target;
+        if (blurVideoRef.current) blurVideoRef.current.currentTime = target;
+      }
+      if (videoHandoff === "finish") endVideoHandoff(video);
+    };
+
+    if (el.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      seek();
+      return;
+    }
+    el.addEventListener("loadedmetadata", seek, { once: true });
+    return () => el.removeEventListener("loadedmetadata", seek);
+  }, [video, shouldLoad, videoHandoff]);
 
   useEffect(() => {
     if (!video || !playOnView || !shouldLoad || priority) return;

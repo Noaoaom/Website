@@ -7,13 +7,15 @@ import {
   useTransform,
   type MotionValue,
 } from "motion/react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useLenis } from "lenis/react";
 import { carouselRedMaskClip } from "@/lib/introCarouselClip";
 import { cropInsetFromVisible, easeZoom } from "@/lib/cropReveal";
 import { projects, getProjectMediaProps, type Project } from "@/lib/projects";
 import { PROJECT_TRANSITION } from "@/lib/projectTransition";
+
+const FORWARD = PROJECT_TRANSITION.forward;
 import {
   SLOT_HEIGHT_VH,
   SLOT_WIDTH_VW,
@@ -70,6 +72,7 @@ function CarouselLayer({
           portrait={mediaProps.portrait}
           priority
           playOnView
+          videoHandoff="continue"
         />
       </motion.div>
     </motion.div>
@@ -96,10 +99,10 @@ function getCarouselProjects(startIndex: number, targetIndex: number): Project[]
 
 export default function ProjectTransition() {
   const router = useRouter();
-  const pathname = usePathname();
   const lenis = useLenis();
   const {
     projectTransitionSlug,
+    projectTransitionOrigin,
     homeTransitionSlug,
     finishProjectTransition,
     finishHomeTransition,
@@ -116,17 +119,14 @@ export default function ProjectTransition() {
   const forwardTargetIndex = projects.findIndex(
     (p) => p.slug === projectTransitionSlug
   );
-  const currentIndex = projects.findIndex(
-    (p) => pathname === `/project/${p.slug}`
-  );
-  const forwardStartIndex = currentIndex >= 0 ? currentIndex : 0;
   const reverseTargetIndex = projects.findIndex(
     (p) => p.slug === homeTransitionSlug
   );
 
+  // Forward: red curtain first, then only the clicked project in the window.
   const carouselProjects = isForward
     ? forwardTargetIndex >= 0
-      ? getCarouselProjects(forwardStartIndex, forwardTargetIndex)
+      ? [projects[forwardTargetIndex]!]
       : []
     : reverseTargetIndex >= 0
       ? getCarouselProjects(0, reverseTargetIndex)
@@ -140,24 +140,42 @@ export default function ProjectTransition() {
   const cropProgresses = useCropValues(mediaCount);
   const beatFlash = useRef(motionValue(0)).current;
 
+  // Click-in from a panel: the window starts on the clicked panel's rect and
+  // grows to fullscreen; the video layer stays pinned to where it sat on screen.
+  const originRef = useRef(projectTransitionOrigin);
+  originRef.current = isForward ? projectTransitionOrigin : null;
+  const hasOrigin = direction === "in" && originRef.current !== null;
+  const originGrow = useRef(motionValue(0)).current;
+  const lerpOrigin = (key: "left" | "top" | "width" | "height", full: () => number) =>
+    (g: number) => {
+      const o = originRef.current;
+      return o ? o[key] + (full() - o[key]) * g : full();
+    };
+  const originLeft = useTransform(originGrow, lerpOrigin("left", () => 0));
+  const originTop = useTransform(originGrow, lerpOrigin("top", () => 0));
+  // Guarded: transforms also evaluate during server render, where there is no window.
+  const viewportWidth = () => (typeof window === "undefined" ? 0 : window.innerWidth);
+  const viewportHeight = () => (typeof window === "undefined" ? 0 : window.innerHeight);
+  const originWidth = useTransform(originGrow, lerpOrigin("width", viewportWidth));
+  const originHeight = useTransform(originGrow, lerpOrigin("height", viewportHeight));
+  const originInnerX = useTransform(originLeft, (left) => -left);
+  const originInnerY = useTransform([originGrow, originTop], ([g, top]: number[]) => {
+    const o = originRef.current;
+    return (o ? o.mediaTop * (1 - g) : 0) - top;
+  });
+
+  // Slot and reveal add up, so the click-in can run both at once and grow
+  // the window straight to fullscreen without a jump between the phases.
   const outerHeightVh = useTransform(
     [slotOpen, revealVertical],
-    ([slot, vert]: number[]) => {
-      if (vert > 0) {
-        return SLOT_HEIGHT_VH + easeZoom(vert) * (100 - SLOT_HEIGHT_VH);
-      }
-      return slot * SLOT_HEIGHT_VH;
-    }
+    ([slot, vert]: number[]) =>
+      slot * SLOT_HEIGHT_VH + easeZoom(vert) * (100 - SLOT_HEIGHT_VH)
   );
 
   const outerWidthVw = useTransform(
     [slotOpen, revealHorizontal],
-    ([slot, horiz]: number[]) => {
-      if (horiz > 0) {
-        return SLOT_WIDTH_VW + easeZoom(horiz) * (100 - SLOT_WIDTH_VW);
-      }
-      return slot * SLOT_WIDTH_VW;
-    }
+    ([slot, horiz]: number[]) =>
+      slot * SLOT_WIDTH_VW + easeZoom(horiz) * (100 - SLOT_WIDTH_VW)
   );
 
   const windowWidth = useTransform(outerWidthVw, (w) => `${w}vw`);
@@ -238,51 +256,52 @@ export default function ProjectTransition() {
       const crop = cropProgresses[index];
       crop.set(0);
       return animate(crop, 1, {
-        duration: PROJECT_TRANSITION.cropInS,
+        duration: FORWARD.cropInS,
         ease: PROJECT_TRANSITION.ease,
+        delay: FORWARD.videoDelayS,
       });
     };
 
     const run = async () => {
       reset();
-      beatFlash.set(1);
-      cropProgresses[0]?.set(1);
+      originGrow.set(0);
 
-      const slotAnimation = animate(slotOpen, 1, {
-        duration: PROJECT_TRANSITION.slotOpenS,
-        ease: PROJECT_TRANSITION.ease,
-      });
+      // The red window grows to fullscreen in one move — from the clicked
+      // panel, or from a centred slot when there is none (e.g. "Next") —
+      // and the clicked video crops in after a short red beat.
+      const cropAnimations = Array.from({ length: count }, (_, i) => startCrop(i));
+      const windowAnimations = originRef.current
+        ? [
+            animate(originGrow, 1, {
+              duration: FORWARD.revealS,
+              ease: PROJECT_TRANSITION.ease,
+            }),
+          ]
+        : [
+            animate(slotOpen, 1, {
+              duration: FORWARD.slotOpenS,
+              ease: PROJECT_TRANSITION.ease,
+            }),
+            animate(revealVertical, 1, {
+              duration: FORWARD.revealS,
+              ease: PROJECT_TRANSITION.ease,
+            }),
+            animate(revealHorizontal, 1, {
+              duration: FORWARD.revealS * 0.88,
+              ease: PROJECT_TRANSITION.ease,
+              delay: FORWARD.revealHorizontalDelayS,
+            }),
+          ];
 
-      const cropAnimations: ReturnType<typeof animate>[] = [];
-
-      for (let i = 1; i < count; i++) {
-        await wait(PROJECT_TRANSITION.projectBeatMs);
-        if (cancelled) return;
-        beatFlash.set(i + 1);
-        cropAnimations.push(startCrop(i));
-      }
-
-      await Promise.all([slotAnimation, ...cropAnimations]);
-      if (cancelled) return;
-
-      const revealVerticalAnim = animate(revealVertical, 1, {
-        duration: PROJECT_TRANSITION.revealS,
-        ease: PROJECT_TRANSITION.ease,
-      });
-
-      const revealHorizontalAnim = animate(revealHorizontal, 1, {
-        duration: PROJECT_TRANSITION.revealS * 0.88,
-        ease: PROJECT_TRANSITION.ease,
-        delay: PROJECT_TRANSITION.revealHorizontalDelayS,
-      });
-
+      // Switch pages only once the video fills the window, so the new page
+      // never shows around the red beat.
       const navigateTimer = window.setTimeout(() => {
         if (cancelled || navigated) return;
         navigated = true;
         router.push(`/project/${projectTransitionSlug}`);
-      }, PROJECT_TRANSITION.revealS * PROJECT_TRANSITION.navigateAtReveal * 1000);
+      }, (FORWARD.videoDelayS + FORWARD.cropInS) * 1000);
 
-      await Promise.all([revealVerticalAnim, revealHorizontalAnim]);
+      await Promise.all([...windowAnimations, ...cropAnimations]);
       if (cancelled) return;
 
       window.clearTimeout(navigateTimer);
@@ -321,6 +340,7 @@ export default function ProjectTransition() {
     revealVertical,
     beatFlash,
     cropProgresses,
+    originGrow,
     lenis,
   ]);
 
@@ -460,36 +480,39 @@ export default function ProjectTransition() {
       aria-hidden={fadingOut}
       data-transition-direction={direction}
     >
-      <motion.div
-        className="absolute inset-0 bg-black"
-        style={{ opacity: blackFlashOpacity }}
-      />
-      <motion.div
-        className="absolute inset-0 bg-brand-red"
-        style={{ opacity: redFlashOpacity }}
-      />
+      {/* Forward keeps the page visible around the window; only the way
+          back home covers it with the flash + red curtain. */}
+      {direction === "out" ? (
+        <>
+          <motion.div
+            className="absolute inset-0 bg-black"
+            style={{ opacity: blackFlashOpacity }}
+          />
+          <motion.div
+            className="absolute inset-0 bg-brand-red"
+            style={{ opacity: redFlashOpacity }}
+          />
 
-      <motion.div
-        className="absolute inset-0 z-[185] bg-brand-red will-change-[clip-path]"
-        style={{ clipPath: redMaskClip }}
-      />
+          <motion.div
+            className="absolute inset-0 z-[185] bg-brand-red will-change-[clip-path]"
+            style={{ clipPath: redMaskClip }}
+          />
+        </>
+      ) : null}
 
-      <div className="absolute inset-0 z-[190] flex items-center justify-center">
+      {hasOrigin ? (
         <motion.div
-          className="relative shrink-0 overflow-hidden will-change-[width,height,top,left,transform]"
+          className="fixed z-[190] overflow-hidden bg-brand-red will-change-[width,height,top,left]"
           style={{
-            position: windowPosition,
-            left: windowLeft,
-            top: windowTop,
-            x: windowX,
-            zIndex: windowZIndex,
-            height: windowHeight,
-            width: windowWidth,
+            left: originLeft,
+            top: originTop,
+            width: originWidth,
+            height: originHeight,
           }}
         >
           <motion.div
-            className="absolute left-1/2 top-1/2 w-[100vw] -translate-x-1/2 -translate-y-1/2 will-change-[height]"
-            style={{ height: innerHeight }}
+            className="absolute left-0 top-0 h-dvh w-[100vw]"
+            style={{ x: originInnerX, y: originInnerY }}
           >
             {carouselProjects.map((project, index) => (
               <CarouselLayer
@@ -498,12 +521,46 @@ export default function ProjectTransition() {
                 index={index}
                 cropProgress={cropProgresses[index]!}
                 revealVertical={revealVertical}
-                isTarget={index === carouselProjects.length - 1}
+                isTarget
               />
             ))}
           </motion.div>
         </motion.div>
-      </div>
+      ) : (
+        <div className="absolute inset-0 z-[190] flex items-center justify-center">
+          <motion.div
+            className="relative shrink-0 overflow-hidden will-change-[width,height,top,left,transform]"
+            style={{
+              position: windowPosition,
+              left: windowLeft,
+              top: windowTop,
+              x: windowX,
+              zIndex: windowZIndex,
+              height: windowHeight,
+              width: windowWidth,
+            }}
+          >
+            <motion.div
+              className="absolute left-1/2 top-1/2 w-[100vw] -translate-x-1/2 -translate-y-1/2 will-change-[height]"
+              style={{ height: innerHeight }}
+            >
+              {direction === "in" ? (
+                <div className="absolute inset-0 bg-brand-red" />
+              ) : null}
+              {carouselProjects.map((project, index) => (
+                <CarouselLayer
+                  key={project.slug}
+                  project={project}
+                  index={index}
+                  cropProgress={cropProgresses[index]!}
+                  revealVertical={revealVertical}
+                  isTarget={index === carouselProjects.length - 1}
+                />
+              ))}
+            </motion.div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

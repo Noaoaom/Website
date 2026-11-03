@@ -13,6 +13,8 @@ export type Project = {
   subtitleHref?: string;
   /** Display title in a project-specific face instead of the site sans. */
   titleFont?: "aston-script" | "drowner";
+  /** Optional logo shown instead of the title (brand red via CSS mask). */
+  titleLogo?: string;
   /** Client / brand name shown in the top curtain. */
   client: string;
   /** Two digit index shown in the side curtain. */
@@ -35,10 +37,10 @@ export const projects: Project[] = [
     subtitle: "with @ZoranPingel",
     subtitleHref: "https://www.instagram.com/zoranpingel/",
     titleFont: "aston-script",
-    client: "Client One",
+    client: "@zoranpingel",
     number: "01",
     image: "/placeholders/project-1.svg",
-    video: "/Videos/Dining.mov",
+    video: "/Videos/Dining-web.mp4",
     theme: "black",
     credits: [
       { role: "Director", name: "Name Surname" },
@@ -56,7 +58,7 @@ export const projects: Project[] = [
     client: "YBP",
     number: "02",
     image: "/placeholders/project-2.svg",
-    video: "/Videos/YBP.mov",
+    video: "/Videos/YBP-web.mp4",
     theme: "red",
     credits: [
       { role: "Director", name: "Name Surname" },
@@ -66,12 +68,13 @@ export const projects: Project[] = [
   },
   {
     slug: "project-three",
-    title: "The Third Chapter",
-    subtitle: "A defining fashion film",
-    client: "Client Three",
+    title: "Artclub",
+    subtitle: "x Amano",
+    titleLogo: "/logos/artclub-logo-new-r-light.png",
+    client: "Artclub",
     number: "03",
     image: "/placeholders/project-3.svg",
-    video: "/Videos/Artclub.mov",
+    video: "/Videos/Artclub-web.mp4",
     mediaAspect: "portrait",
     theme: "black",
     credits: [

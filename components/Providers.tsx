@@ -16,7 +16,9 @@ import Header from "./Header";
 import MenuOverlay from "./MenuOverlay";
 import Cursor from "./Cursor";
 import ProjectTransition from "./ProjectTransition";
+import type { TransitionOrigin } from "@/lib/projectTransition";
 import VideoPreloadGate from "./VideoPreloadGate";
+import { useReducedMotion } from "motion/react";
 import type { MenuPanel } from "@/lib/menuPanels";
 import {
   syncIntroReelEndState,
@@ -37,6 +39,10 @@ type UIState = {
   setPreloaderActive: (v: boolean) => void;
   mediaPreloadProgress: number;
   setMediaPreloadProgress: (v: number) => void;
+  mediaPreloadComplete: boolean;
+  setMediaPreloadComplete: (v: boolean) => void;
+  wordmarkIntroDone: boolean;
+  setWordmarkIntroDone: (v: boolean) => void;
   introScrollEnabled: boolean;
   setIntroScrollEnabled: (v: boolean) => void;
   introComplete: boolean;
@@ -49,7 +55,13 @@ type UIState = {
   setWordmarkRevealReady: (v: boolean) => void;
   /** Slug of project currently in carousel transition. */
   projectTransitionSlug: string | null;
-  startProjectTransition: (slug: string, homeScrollY?: number) => void;
+  startProjectTransition: (
+    slug: string,
+    homeScrollY?: number,
+    origin?: TransitionOrigin
+  ) => void;
+  /** Clicked panel the click-in window grows from (null → centred slot). */
+  projectTransitionOrigin: TransitionOrigin | null;
   finishProjectTransition: () => void;
   homeTransitionSlug: string | null;
   finishHomeTransition: () => void;
@@ -199,6 +211,34 @@ function HomeScrollRestore({
   return null;
 }
 
+/** Starts the intro carousel only after wordmarks and videos are ready. */
+function IntroStartGate() {
+  const reducedMotion = useReducedMotion();
+  const {
+    introComplete,
+    mediaPreloadComplete,
+    wordmarkIntroDone,
+    setIntroSequenceReady,
+  } = useUI();
+
+  useEffect(() => {
+    if (introComplete || reducedMotion) {
+      setIntroSequenceReady(true);
+      return;
+    }
+
+    setIntroSequenceReady(mediaPreloadComplete && wordmarkIntroDone);
+  }, [
+    introComplete,
+    reducedMotion,
+    mediaPreloadComplete,
+    wordmarkIntroDone,
+    setIntroSequenceReady,
+  ]);
+
+  return null;
+}
+
 export default function Providers({ children }: { children: ReactNode }) {
   const router = useRouter();
   const reelMotion = useIntroReelMotion();
@@ -207,24 +247,32 @@ export default function Providers({ children }: { children: ReactNode }) {
   const [loaderDone, setLoaderDone] = useState(false);
   const [preloaderActive, setPreloaderActive] = useState(true);
   const [mediaPreloadProgress, setMediaPreloadProgress] = useState(0);
+  const [mediaPreloadComplete, setMediaPreloadComplete] = useState(false);
+  const [wordmarkIntroDone, setWordmarkIntroDone] = useState(false);
   const [introScrollEnabled, setIntroScrollEnabled] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const [introSequenceReady, setIntroSequenceReady] = useState(false);
   const [wordmarkRevealReady, setWordmarkRevealReady] = useState(false);
   const [projectTransitionSlug, setProjectTransitionSlug] = useState<string | null>(null);
+  const [projectTransitionOrigin, setProjectTransitionOrigin] =
+    useState<TransitionOrigin | null>(null);
   const [homeTransitionSlug, setHomeTransitionSlug] = useState<string | null>(null);
   const [pendingHomeProjectSlug, setPendingHomeProjectSlug] = useState<string | null>(null);
   const [pendingHomeScroll, setPendingHomeScroll] = useState<number | null>(null);
   const homeReturnProjectSlugRef = useRef<string | null>(null);
   const homeReturnScrollRef = useRef<number | null>(null);
 
-  const startProjectTransition = useCallback((slug: string, homeScrollY?: number) => {
-    if (typeof window !== "undefined" && window.location.pathname === "/") {
-      homeReturnProjectSlugRef.current = slug;
-      homeReturnScrollRef.current = homeScrollY ?? null;
-    }
-    setProjectTransitionSlug(slug);
-  }, []);
+  const startProjectTransition = useCallback(
+    (slug: string, homeScrollY?: number, origin?: TransitionOrigin) => {
+      if (typeof window !== "undefined" && window.location.pathname === "/") {
+        homeReturnProjectSlugRef.current = slug;
+        homeReturnScrollRef.current = homeScrollY ?? null;
+      }
+      setProjectTransitionOrigin(origin ?? null);
+      setProjectTransitionSlug(slug);
+    },
+    []
+  );
 
   const finishProjectTransition = useCallback(() => {
     setProjectTransitionSlug(null);
@@ -284,6 +332,10 @@ export default function Providers({ children }: { children: ReactNode }) {
       setPreloaderActive,
       mediaPreloadProgress,
       setMediaPreloadProgress,
+      mediaPreloadComplete,
+      setMediaPreloadComplete,
+      wordmarkIntroDone,
+      setWordmarkIntroDone,
       introScrollEnabled,
       setIntroScrollEnabled,
       introComplete,
@@ -294,6 +346,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       setWordmarkRevealReady,
       projectTransitionSlug,
       startProjectTransition,
+      projectTransitionOrigin,
       finishProjectTransition,
       homeTransitionSlug,
       finishHomeTransition,
@@ -309,12 +362,15 @@ export default function Providers({ children }: { children: ReactNode }) {
       loaderDone,
       preloaderActive,
       mediaPreloadProgress,
+      mediaPreloadComplete,
+      wordmarkIntroDone,
       introScrollEnabled,
       introComplete,
       introSequenceReady,
       wordmarkRevealReady,
       projectTransitionSlug,
       startProjectTransition,
+      projectTransitionOrigin,
       finishProjectTransition,
       homeTransitionSlug,
       finishHomeTransition,
@@ -351,6 +407,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       <MenuOverlay />
       <ProjectTransition />
       <VideoPreloadGate />
+      <IntroStartGate />
       <Cursor />
     </UIContext.Provider>
   );

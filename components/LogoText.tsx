@@ -17,8 +17,8 @@ export default function LogoText({
       style={{
         width,
         height,
-        WebkitMaskImage: "url(/logo-text.svg)",
-        maskImage: "url(/logo-text.svg)",
+        WebkitMaskImage: "url(/logos/logo-text.svg)",
+        maskImage: "url(/logos/logo-text.svg)",
         WebkitMaskSize: "contain",
         maskSize: "contain",
         WebkitMaskRepeat: "no-repeat",

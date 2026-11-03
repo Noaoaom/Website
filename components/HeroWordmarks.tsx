@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AnimatePresence,
   animate,
   motion,
   useMotionValue,
@@ -10,6 +11,7 @@ import {
 } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { easeZoom } from "@/lib/cropReveal";
+import { carouselRedMaskClip, carouselWindowClip } from "@/lib/introCarouselClip";
 import { site } from "@/lib/site";
 import { HERO_WORDMARK, WORDMARK_INTRO } from "./heroWordmarkLayout";
 import type { IntroReelMotion } from "./intro/useIntroReelMotion";
@@ -19,8 +21,9 @@ import { useUI } from "./Providers";
 const STUDIO_SCALE_X = 1.752095;
 const EASE = [0.22, 1, 0.36, 1] as const;
 const OFFSCREEN_PAD_PX = 48;
-/** Brand red + difference → black on curtain, red on dark media (pixel-exact). */
 const BRAND_RED = "#d60001";
+const CURTAIN_INK = "#000000";
+const LOAD_BAR_HOLD_MS = 600;
 
 let inkCanvasCtx: CanvasRenderingContext2D | null | undefined;
 
@@ -145,7 +148,8 @@ type HeroWordmarksProps = {
 };
 
 type WordmarkLayerProps = {
-  measureRef: RefObject<HTMLSpanElement | null>;
+  measureRef?: RefObject<HTMLSpanElement | null>;
+  color: string;
   wordClass: string;
   label: string;
   originClass: string;
@@ -163,6 +167,7 @@ const wordmarkTypography =
 
 function WordmarkLayer({
   measureRef,
+  color,
   wordClass,
   label,
   originClass,
@@ -180,8 +185,8 @@ function WordmarkLayer({
         y,
         scaleX,
         opacity,
-        color: BRAND_RED,
-        WebkitTextStrokeColor: BRAND_RED,
+        color,
+        WebkitTextStrokeColor: color,
       }}
     >
       {label}
@@ -196,13 +201,20 @@ export default function HeroWordmarks({
   const reducedMotion = useReducedMotion();
   const {
     introComplete,
-    introSequenceReady,
     wordmarkRevealReady,
     mediaPreloadProgress,
+    mediaPreloadComplete,
+    wordmarkIntroDone,
     setLoaderDone,
+    setWordmarkIntroDone,
   } = useUI();
-  const { outerHeightVh, revealVertical, wordmarkRevealReady: wordmarkRevealReadyMv } =
-    reelMotion;
+  const {
+    outerHeightVh,
+    outerWidthVw,
+    slotOpen,
+    revealVertical,
+    wordmarkRevealReady: wordmarkRevealReadyMv,
+  } = reelMotion;
   const useFinalTypography =
     Boolean(reducedMotion || introComplete || wordmarkRevealReady);
 
@@ -218,9 +230,6 @@ export default function HeroWordmarks({
   );
 
   const [visible, setVisible] = useState(Boolean(reducedMotion || introComplete));
-  const [wordmarkIntroDone, setWordmarkIntroDone] = useState(
-    Boolean(reducedMotion || introComplete)
-  );
   const [measurementsReady, setMeasurementsReady] = useState(false);
 
   const leftX = useMotionValue(0);
@@ -284,6 +293,20 @@ export default function HeroWordmarks({
     const t = easeZoom(vert);
     return STUDIO_SCALE_X * (1 + (m.revealScaleX - 1) * t);
   });
+
+  // Black ink on the red curtain, brand red wherever the carousel window
+  // sits behind the letters (the window is centred, so plain insets suffice).
+  const insideCarouselClip = useTransform(
+    [slotOpen, outerHeightVh, outerWidthVw],
+    ([slot, hVh, wVw]: number[]) =>
+      slot <= 0.001 ? "inset(50% 50% 50% 50%)" : carouselWindowClip(hVh, wVw)
+  );
+  const outsideCarouselClip = useTransform(
+    [slotOpen, outerHeightVh, outerWidthVw],
+    ([slot, hVh, wVw]: number[]) =>
+      slot <= 0.001 ? "none" : carouselRedMaskClip(hVh, wVw)
+  );
+  const curtainGone = Boolean(reducedMotion || introComplete);
 
   useLayoutEffect(() => {
     if (reducedMotion) {
@@ -455,14 +478,24 @@ export default function HeroWordmarks({
     leftX,
     rightX,
     setLoaderDone,
+    setWordmarkIntroDone,
   ]);
 
+  // The percentage stays up through the wordmark intro (so it is seen even
+  // when videos come from cache) and holds briefly at 100% before fading out.
+  const [loadBarHeld, setLoadBarHeld] = useState(false);
+  useEffect(() => {
+    if (!mediaPreloadComplete) return;
+    setLoadBarHeld(true);
+    const timer = window.setTimeout(() => setLoadBarHeld(false), LOAD_BAR_HOLD_MS);
+    return () => window.clearTimeout(timer);
+  }, [mediaPreloadComplete]);
+
+  const loadPercent = mediaPreloadComplete ? 100 : mediaPreloadProgress;
   const showLoadProgress =
-    wordmarkIntroDone &&
-    !introSequenceReady &&
+    (!mediaPreloadComplete || !wordmarkIntroDone || loadBarHeld) &&
     !introComplete &&
-    !reducedMotion &&
-    mediaPreloadProgress < 100;
+    !reducedMotion;
 
   const wordmarkStyle = {
     fontSize: HERO_WORDMARK.fontSize,
@@ -476,11 +509,58 @@ export default function HeroWordmarks({
   const leftLineHeight = useFinalTypography ? 0.9 : 1;
   const rightLineHeight = useFinalTypography ? 0.3 : 1;
 
+  const renderVisibleWordmarks = (color: string, withRefs: boolean) => (
+    <>
+      <span
+        className="absolute inset-x-0 top-0 block text-center"
+        style={{ paddingTop: HERO_WORDMARK.insetBlockStart }}
+      >
+        <WordmarkLayer
+          measureRef={withRefs ? leftMeasureRef : undefined}
+          color={color}
+          wordClass={leftWordClass}
+          label={site.wordmark.left}
+          originClass="origin-top"
+          style={{
+            lineHeight: leftLineHeight,
+            x: leftX,
+            y: leftY,
+            scaleX: leftScaleX,
+            opacity: visible ? 1 : 0,
+          }}
+        />
+      </span>
+
+      <span
+        className="absolute inset-x-0 bottom-0 block text-center"
+        style={{ paddingBottom: HERO_WORDMARK.insetBlockEnd }}
+      >
+        <WordmarkLayer
+          measureRef={withRefs ? rightMeasureRef : undefined}
+          color={color}
+          wordClass={rightWordClass}
+          label={site.wordmark.right}
+          originClass="origin-bottom"
+          style={{
+            lineHeight: rightLineHeight,
+            x: rightX,
+            y: rightY,
+            scaleX: rightScaleX,
+            opacity: visible ? 1 : 0,
+          }}
+        />
+      </span>
+    </>
+  );
+
   return (
     <div
-      className={`pointer-events-none absolute inset-0 z-[196] overflow-hidden mix-blend-difference ${className}`}
-      style={wordmarkStyle}
+      className={`pointer-events-none absolute inset-0 z-[196] ${className}`}
     >
+      <div
+        className="absolute inset-0 overflow-hidden"
+        style={wordmarkStyle}
+      >
       <div
         className="pointer-events-none invisible absolute inset-0"
         aria-hidden
@@ -528,56 +608,46 @@ export default function HeroWordmarks({
         </div>
       </div>
 
-      {showLoadProgress ? (
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.35, ease: EASE }}
-          className="absolute left-1/2 top-[calc(50%+0.55em)] -translate-x-1/2 font-helvetica text-[11px] uppercase tracking-[0.35em] text-brand-red/55 mix-blend-difference md:text-[13px]"
-          aria-live="polite"
-          aria-label={`Loading videos ${mediaPreloadProgress} percent`}
+      {curtainGone ? null : (
+        <motion.div
+          className="absolute inset-0"
+          style={{ clipPath: outsideCarouselClip }}
         >
-          {mediaPreloadProgress}%
-        </motion.span>
-      ) : null}
-
-      <span
-        className="absolute inset-x-0 top-0 block text-center"
-        style={{ paddingTop: HERO_WORDMARK.insetBlockStart }}
+          {renderVisibleWordmarks(CURTAIN_INK, false)}
+        </motion.div>
+      )}
+      <motion.div
+        className="absolute inset-0"
+        style={{ clipPath: curtainGone ? "none" : insideCarouselClip }}
       >
-        <WordmarkLayer
-          measureRef={leftMeasureRef}
-          wordClass={leftWordClass}
-          label={site.wordmark.left}
-          originClass="origin-top"
-          style={{
-            lineHeight: leftLineHeight,
-            x: leftX,
-            y: leftY,
-            scaleX: leftScaleX,
-            opacity: visible ? 1 : 0,
-          }}
-        />
-      </span>
+        {renderVisibleWordmarks(BRAND_RED, true)}
+      </motion.div>
+      </div>
 
-      <span
-        className="absolute inset-x-0 bottom-0 block text-center"
-        style={{ paddingBottom: HERO_WORDMARK.insetBlockEnd }}
-      >
-        <WordmarkLayer
-          measureRef={rightMeasureRef}
-          wordClass={rightWordClass}
-          label={site.wordmark.right}
-          originClass="origin-bottom"
-          style={{
-            lineHeight: rightLineHeight,
-            x: rightX,
-            y: rightY,
-            scaleX: rightScaleX,
-            opacity: visible ? 1 : 0,
-          }}
-        />
-      </span>
+      <AnimatePresence>
+        {showLoadProgress ? (
+          <motion.span
+            key="load-progress"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.5, ease: EASE } }}
+            transition={{ duration: 0.6, ease: EASE }}
+            className="absolute left-1/2 top-[30dvh] z-[10] -translate-x-1/2 -translate-y-1/2 font-helvetica text-[22px] tabular-nums uppercase tracking-[0.2em] text-black md:text-[28px]"
+            style={{
+              WebkitTextStrokeWidth: "0.07em",
+              WebkitTextStrokeColor: "currentColor",
+              paintOrder: "stroke fill",
+            }}
+            role="progressbar"
+            aria-label="Loading videos"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={loadPercent}
+          >
+            {loadPercent}%
+          </motion.span>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

@@ -17,19 +17,19 @@ export default function VideoPreloadGate() {
   const {
     introComplete,
     setMediaPreloadProgress,
-    setIntroSequenceReady,
+    setMediaPreloadComplete,
   } = useUI();
 
   useEffect(() => {
     if (pathname !== "/" || introComplete) {
       setMediaPreloadProgress(100);
-      setIntroSequenceReady(true);
+      setMediaPreloadComplete(true);
       return;
     }
 
     if (reducedMotion) {
       setMediaPreloadProgress(100);
-      setIntroSequenceReady(true);
+      setMediaPreloadComplete(true);
       return;
     }
 
@@ -42,12 +42,13 @@ export default function VideoPreloadGate() {
       if (videoUrls.length === 0 || !window.matchMedia("(pointer: fine)").matches) {
         if (!cancelled) {
           setMediaPreloadProgress(100);
-          setIntroSequenceReady(true);
+          setMediaPreloadComplete(true);
         }
         return;
       }
 
       setMediaPreloadProgress(0);
+      setMediaPreloadComplete(false);
 
       await preloadVideosWithProgress(
         videoUrls,
@@ -60,7 +61,7 @@ export default function VideoPreloadGate() {
       if (cancelled) return;
 
       setMediaPreloadProgress(100);
-      setIntroSequenceReady(true);
+      setMediaPreloadComplete(true);
     };
 
     run();
@@ -73,7 +74,7 @@ export default function VideoPreloadGate() {
     introComplete,
     reducedMotion,
     setMediaPreloadProgress,
-    setIntroSequenceReady,
+    setMediaPreloadComplete,
   ]);
 
   return null;

@@ -34,8 +34,8 @@ export default function LogoSprite({
           className="logo-sprite aspect-[800/512] h-full"
           style={{
             backgroundColor: color,
-            WebkitMaskImage: "url(/logo-mark.svg)",
-            maskImage: "url(/logo-mark.svg)",
+            WebkitMaskImage: "url(/logos/logo-mark.svg)",
+            maskImage: "url(/logos/logo-mark.svg)",
             WebkitMaskSize: "contain",
             maskSize: "contain",
             WebkitMaskRepeat: "no-repeat",

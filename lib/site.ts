@@ -19,7 +19,7 @@ export const site = {
       { label: "Impressum", href: "/impressum", panel: "impressum" as MenuPanel },
     ],
   },
-  email: "studio@dickhausen.de",
+  email: "noam@dickhausen.de",
   instagram: {
     handle: "@noaoaom",
     url: "https://www.instagram.com/noaoaom/",

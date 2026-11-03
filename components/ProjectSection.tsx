@@ -10,9 +10,13 @@ import {
   usesDisplayTitleFont,
 } from "@/app/fonts";
 import { getProjectMediaProps, getProjectTitleClassName, type Project } from "@/lib/projects";
+import { measureClippedMedia } from "@/lib/projectTransition";
+import { startVideoHandoff } from "@/lib/videoHandoff";
 import { useUI } from "./Providers";
 import MediaCover from "./ui/MediaCover";
 import ScrollRevealText, { TEXT_TRANSITION_SPEED } from "./ui/ScrollRevealText";
+import ScrollRevealLogo from "./ui/ScrollRevealLogo";
+import ProjectTitleLogo from "./ui/ProjectTitleLogo";
 
 /** Overlap for first project entering over the pinned hero. */
 export const HERO_OVERLAP_VH = 50;
@@ -40,6 +44,7 @@ export default function ProjectSection({
   overlapPrevious = 0,
 }: ProjectSectionProps) {
   const sectionRef = useRef<HTMLElement>(null);
+  const mediaRef = useRef<HTMLDivElement>(null);
   const lenis = useLenis();
   const { startProjectTransition, projectTransitionSlug } = useUI();
   const isRedBg = index % 2 === 1;
@@ -121,7 +126,14 @@ export default function ProjectSection({
     event.preventDefault();
     if (projectTransitionSlug) return;
     const homeScrollY = lenis?.scroll ?? window.scrollY;
-    startProjectTransition(project.slug, homeScrollY);
+    const origin = mediaRef.current ? measureClippedMedia(mediaRef.current) : undefined;
+    if (project.video) {
+      // Last <video> is the sharp foreground (portrait media puts a blurred copy first).
+      const panelVideos = mediaRef.current?.querySelectorAll("video");
+      const panelVideo = panelVideos?.[panelVideos.length - 1];
+      startVideoHandoff(project.video, panelVideo?.currentTime ?? 0);
+    }
+    startProjectTransition(project.slug, homeScrollY, origin);
   };
 
   const mediaProps = getProjectMediaProps(project);
@@ -145,6 +157,7 @@ export default function ProjectSection({
       >
         <div className="absolute inset-0 h-dvh w-full overflow-hidden">
           <motion.div
+            ref={mediaRef}
             className="absolute inset-0 h-dvh w-full will-change-[clip-path]"
             style={{ clipPath: revealCrop }}
           >
@@ -179,21 +192,32 @@ export default function ProjectSection({
             }`}
             style={{ scale: titleScale }}
           >
-            <ScrollRevealText
-              as="h3"
-              text={project.title}
-              enterProgress={textEnterProgress}
-              exitProgress={textExitProgress}
-              className={`${getProjectTitleClassName(project, "section")}${
-                projectDisplayFontClass(project.titleFont)
-                  ? ` ${projectDisplayFontClass(project.titleFont)}`
-                  : ""
-              }`}
-              clipChars={!usesDisplayTitleFont(project.titleFont)}
-              stagger={0.75}
-              travelEm={0.4}
-              speed={textSpeed}
-            />
+            {project.titleLogo ? (
+              <ScrollRevealLogo
+                src={project.titleLogo}
+                alt={project.title}
+                enterProgress={textEnterProgress}
+                exitProgress={textExitProgress}
+                className="h-[38px] w-[min(68vw,260px)] md:h-[62px] md:w-[min(52vw,420px)] lg:h-[74px] lg:w-[min(48vw,480px)]"
+                speed={textSpeed}
+              />
+            ) : (
+              <ScrollRevealText
+                as="h3"
+                text={project.title}
+                enterProgress={textEnterProgress}
+                exitProgress={textExitProgress}
+                className={`${getProjectTitleClassName(project, "section")}${
+                  projectDisplayFontClass(project.titleFont)
+                    ? ` ${projectDisplayFontClass(project.titleFont)}`
+                    : ""
+                }`}
+                clipChars={!usesDisplayTitleFont(project.titleFont)}
+                stagger={0.75}
+                travelEm={0.4}
+                speed={textSpeed}
+              />
+            )}
             <ScrollRevealText
               as="h4"
               text={project.subtitle}

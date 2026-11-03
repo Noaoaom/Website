@@ -12,6 +12,8 @@ import Footer from "./Footer";
 import { HoverButton } from "./ui/HoverLink";
 import MediaCover from "./ui/MediaCover";
 import RevealText from "./ui/RevealText";
+import ProjectTitleLogo from "./ui/ProjectTitleLogo";
+import { startVideoHandoff } from "@/lib/videoHandoff";
 import { useUI } from "./Providers";
 
 type ProjectViewProps = {
@@ -34,6 +36,7 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     if (projectTransitionSlug) return;
+    if (nextProject.video) startVideoHandoff(nextProject.video);
     startProjectTransition(nextProject.slug);
   };
 
@@ -51,6 +54,7 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
             video={project.video}
             alt={project.title}
             priority
+            videoHandoff="finish"
             fit={mediaProps.fit}
             portrait={mediaProps.portrait}
           />
@@ -68,16 +72,24 @@ export default function ProjectView({ project, nextProject }: ProjectViewProps) 
                 text={project.client}
                 className="mb-6 block font-helvetica text-[15px] uppercase leading-none text-brand-red md:text-[21px]"
               />
-              <RevealText
-                as="h1"
-                text={project.title}
-                className={`${getProjectTitleClassName(project, "detail")}${
-                  projectDisplayFontClass(project.titleFont)
-                    ? ` ${projectDisplayFontClass(project.titleFont)}`
-                    : ""
-                }`}
-                clipChars={!usesDisplayTitleFont(project.titleFont)}
-              />
+              {project.titleLogo ? (
+                <ProjectTitleLogo
+                  src={project.titleLogo}
+                  alt={project.title}
+                  className="h-[44px] w-[min(78vw,300px)] md:h-[72px] md:w-[min(60vw,440px)] lg:h-[84px] lg:w-[min(50vw,500px)]"
+                />
+              ) : (
+                <RevealText
+                  as="h1"
+                  text={project.title}
+                  className={`${getProjectTitleClassName(project, "detail")}${
+                    projectDisplayFontClass(project.titleFont)
+                      ? ` ${projectDisplayFontClass(project.titleFont)}`
+                      : ""
+                  }`}
+                  clipChars={!usesDisplayTitleFont(project.titleFont)}
+                />
+              )}
               {project.subtitleHref ? (
                 <a
                   href={project.subtitleHref}
