@@ -6,3 +6,5 @@ out/
 next-env.d.ts
 .env*
 public/Videos/Blitz.mp4
+# Original source videos (site uses the *-web.mp4 encodes)
+public/Videos/*.mov
