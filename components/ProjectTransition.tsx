@@ -14,6 +14,7 @@ import { carouselRedMaskClip } from "@/lib/introCarouselClip";
 import { cropInsetFromVisible, easeZoom } from "@/lib/cropReveal";
 import { projects, getProjectMediaProps, type Project } from "@/lib/projects";
 import { PROJECT_TRANSITION } from "@/lib/projectTransition";
+import { waitUntil } from "@/lib/waitUntil";
 
 const FORWARD = PROJECT_TRANSITION.forward;
 import {
@@ -308,6 +309,45 @@ export default function ProjectTransition() {
       if (!navigated) {
         navigated = true;
         router.push(`/project/${projectTransitionSlug}`);
+      }
+
+      // Hold the overlay until the project page shows the same video fully;
+      // fading earlier cross-fades two half-transparent layers and the page
+      // underneath flashes through.
+      const targetVideo = carouselProjects[0]?.video;
+      const findPageVideo = () => {
+        if (!targetVideo) return null;
+        const candidates = Array.from(
+          document.querySelectorAll<HTMLVideoElement>("main video")
+        ).filter((v) => v.src.endsWith(targetVideo));
+        return candidates[candidates.length - 1] ?? null;
+      };
+      await waitUntil(() => {
+        if (!window.location.pathname.startsWith(`/project/${projectTransitionSlug}`)) {
+          return false;
+        }
+        if (!targetVideo) return true;
+        const pageVideo = findPageVideo();
+        return (
+          pageVideo !== null &&
+          pageVideo.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
+          pageVideo.dataset.videoShown === "true"
+        );
+      }, PROJECT_TRANSITION.pageReadyMaxWaitMs);
+      if (cancelled) return;
+      // Let the page video finish its own fade-in (MediaCover: 300ms).
+      await wait(PROJECT_TRANSITION.pageVideoFadeMs);
+      if (cancelled) return;
+
+      // Line the page video up with the overlay frame so the fade is invisible.
+      // Last <video> is the sharp foreground (portrait media puts a blurred copy first).
+      const overlayVideos = document.querySelectorAll<HTMLVideoElement>(
+        "[data-transition-direction] video"
+      );
+      const overlayVideo = overlayVideos[overlayVideos.length - 1];
+      const pageVideo = findPageVideo();
+      if (overlayVideo && pageVideo && overlayVideo.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        pageVideo.currentTime = overlayVideo.currentTime;
       }
 
       setFadingOut(true);

@@ -39,5 +39,9 @@ export const PROJECT_TRANSITION = {
   revealHorizontalDelayS: 0.22,
   navigateAtReveal: 0.55,
   overlayFadeMs: 350,
+  /** Max wait for the project page video before the overlay fades anyway. */
+  pageReadyMaxWaitMs: 2500,
+  /** MediaCover's own video fade-in, waited out before the overlay fades. */
+  pageVideoFadeMs: 320,
   ease: [0.22, 1, 0.36, 1] as const,
 } as const;

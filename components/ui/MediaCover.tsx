@@ -211,6 +211,7 @@ export default function MediaCover({
           autoPlay={priority}
           preload={priority ? "auto" : "metadata"}
           onCanPlay={() => setVideoReady(true)}
+          data-video-shown={showVideo || undefined}
           className={`absolute inset-0 h-full w-full ${layerClass} transition-opacity duration-300 ${
             showVideo ? "opacity-100" : "opacity-0"
           }`}
